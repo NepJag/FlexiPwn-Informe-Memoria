@@ -1,0 +1,15 @@
+.svn
+.svn/*
+*.aux
+*.bbl
+*.blg
+*.lof
+*.lot
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.pdf
+memoria_latex.zip
