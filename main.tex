@@ -30,6 +30,7 @@
 %\anho{2021} % incluir solo para reemplazar el año actual
 
 \usepackage{lipsum}
+\usepackage{xcolor}
 
 \begin{document}
 
@@ -37,7 +38,7 @@
 \maketitle
 
 \begin{resumen}
-\lipsum[1-4]
+    \textbf{\colorbox{yellow}{PENDIENTE PENDIENTE PENDIENTE}}
 \end{resumen}
 
 % opcional: incluir para tesis en inglés;
@@ -48,11 +49,21 @@
 %\end{abstract}
 
 \begin{dedicatoria}
-Una dedicatoria corta.
+\textbf{\colorbox{yellow}{PENDIENTE PENDIENTE PENDIENTE}}
 \end{dedicatoria}
 
 \begin{thanks}
-\lipsum[1-2]
+    \begin{itemize}
+        \item Cami
+        \item Familia
+        \item Amigos Colegio
+        \item Amigos Universidad
+        \item Eduardo
+        \item CLCERT
+        \item DCC
+        \item Maribel
+        \item 
+    \end{itemize}
 \end{thanks}
 
 \tableofcontents
@@ -61,10 +72,12 @@ Una dedicatoria corta.
 
 \mainmatter
 
-\input{intro.tex}
-\input{cap2.tex}
-\input{cap3.tex}
-\input{conclu.tex}
+\input{cap1-introducción.tex}
+\input{cap2-estado-del-arte.tex}
+\input{cap3-diseño.tex}
+\input{cap4-implementación.tex}
+\input{cap5-validación.tex}
+\input{cap6-conclusión.tex}
 
 % ver https://www.overleaf.com/learn/latex/Glossaries
 % \input{glosario.tex} % opcional
