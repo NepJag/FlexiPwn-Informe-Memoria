@@ -1,15 +1,146 @@
 \chapter{Introducción}
 
-\lipsum[30-31]
+Actualmente, la seguridad en el desarrollo de software es fundamental. Sin embargo,
+las malas prácticas y la falta de conocimiento siguen existiendo a pesar del aumento
+de amenazas y la mejora continua de capacidades de los atacantes.
+
+Existe abundante literatura respecto a las vulnerabilidades con las que se puede
+encontrar un desarrollador, como el OWASP Top 10~\cite{owasptop10}, que cataloga
+las vulnerabilidades de software más críticas, incluyendo inyección, pérdida de
+control de acceso, fallas criptográficas, entre otras. Sin embargo, la mejor forma
+de conocer el riesgo real de las vulnerabilidades es entendiendo cómo funcionan,
+para lo cual un enfoque práctico permite validar su correcto entendimiento. Las
+investigaciones demuestran que el aprendizaje práctico es significativamente más
+efectivo, con estudios mostrando que los participantes retienen el 75\% de la
+información a través de práctica \textit{hands-on}, comparado con solo el 5\%
+mediante métodos teóricos tradicionales~\cite{sanshandson}.
+
+El problema a abordar en este trabajo es facilitar, tanto al equipo docente como
+a los estudiantes, confirmar sus conocimientos teóricos a partir de una plataforma
+automatizada que valide sus avances. Las y los desarrolladores necesitan entornos
+controlados y seguros donde puedan experimentar y explorar vulnerabilidades posibles
+dentro de una aplicación sin que esta sea de producción. Para ello, se diseña y
+desarrolla un sistema de evaluación automático de ejercicios de ciberseguridad
+ofensiva.
+
+Este proyecto se aproxima al problema desde tres perspectivas complementarias.
+Desde lo \textbf{pedagógico}, se requiere una forma de evaluar el progreso que capture la
+trayectoria completa del aprendizaje, no solo el resultado final. La validación
+automática basada en el estado del sistema permite registrar cada paso del
+estudiante durante el ataque, proporcionando trazabilidad real del proceso de
+aprendizaje sin recurrir a soluciones artificiales como múltiples \textit{flags}
+intermedias. Desde lo \textbf{técnico}, existe una oportunidad de contribuir al ecosistema
+de herramientas \textit{open source} de detección de intrusiones, publicando
+código, patrones y metodologías que permitan que la comunidad académica evalúe
+y mejore estos enfoques. Desde lo \textbf{personal}, este proyecto representa la oportunidad
+de desarrollar experiencia práctica en el diseño e implementación de sistemas
+complejos con múltiples componentes, arquitecturas de capas bien definidas, y
+desafíos de observabilidad cercanos a los que enfrenta la industria de
+ciberseguridad.
 
 \section{Objetivos}
 
 \subsection{Objetivo General}
+
+Desarrollar una plataforma educativa autohospedable que permita crear entornos de
+práctica de seguridad ofensiva personalizables, con validación automática del
+progreso basada en estado de los sistemas comprometidos, facilitando el aprendizaje
+práctico de vulnerabilidades sin depender de validaciones manuales.
+
 \subsection{Objetivo Específicos}
 
+\begin{enumerate}
+    \item Diseñar e implementar una arquitectura modular que permita desplegar y
+    gestionar múltiples entornos vulnerables simultáneamente mediante tecnologías
+    de virtualización, asegurando aislamiento y facilidad de configuración.
+
+    \item Desarrollar un sistema de configuración declarativa que permita definir
+    las condiciones de éxito de un ejercicio mediante archivos YAML, haciendo que
+    la plataforma sea accesible incluso a educadores sin conocimiento técnico
+    profundo.
+
+    \item Implementar el motor de validación automática que evalúe el estado de
+    los sistemas comprometidos, determinando el progreso sin depender de
+    \textit{flags} predefinidas, ya sea por archivos modificados, servicios
+    comprometidos, usuarios creados, entre otros.
+
+    \item Crear herramientas de seguimiento del progreso, acceso a enunciados de
+    ejercicios y administración del sistema para educadores y estudiantes,
+    implementadas inicialmente mediante línea de comandos.
+
+    \item Poner la plataforma a disposición del laboratorio de ciberseguridad
+    CLCERT para su evaluación en una instancia real de uso.
+\end{enumerate}
+
+\section{Evaluación}
+
+La forma de evaluar este trabajo será verificando la capacidad del sistema para
+generar diferentes tipos de ejercicios con validación automática. El trabajo se
+considerará exitoso si es posible crear ejercicios de seguridad ofensiva con
+validación automática para al menos tres categorías entre: aplicaciones y servicios
+web, bases de datos, \textit{pwning}, análisis forense e ingeniería reversa. Se
+entenderá por validación automática aquella que marca el ejercicio como completado
+automáticamente cuando el participante logra explotar una vulnerabilidad, acceder a
+un archivo específico, comprometer un servicio u obtener privilegios de usuario, sin
+requerir la entrada manual de \textit{flags} o códigos predefinidos.
+
 \section{Solución Propuesta}
+
+La solución consiste en una plataforma que permite a los educadores cargar imágenes
+de sistemas vulnerables y definir reglas de validación mediante archivos YAML,
+generando automáticamente entornos de práctica personalizados con validación
+automática.
+
 \subsection{Arquitectura General}
-\subsection{Descripción de Capas}
-\subsection{Justificación de la Arquitectura de Capas*** (quizás en diseño)}
-\subsection{Componentes principales*** (quizás en diseño)}
+
+El sistema implementa una arquitectura dividida en cuatro capas con
+responsabilidades claramente delimitadas. Esta arquitectura emergió del análisis
+de pruebas de concepto desarrolladas durante el trabajo previo al semestre, donde
+se identificó que la separación de responsabilidades entre el sistema vulnerable,
+el mecanismo de detección y la lógica de evaluación es fundamental para lograr
+flexibilidad y extensibilidad.
+
+\begin{description}
+    \item[Capa 1 — Sistemas virtualizados] Contiene en estado virtualizado todos
+    los sistemas y redes que componen el escenario de ataque. Se divide en dos
+    subcapas: la Capa 1a representa el sistema vulnerable objetivo, mientras que
+    la Capa 1b proporciona el entorno atacante desde el cual el estudiante ejecuta
+    el ataque.
+
+    \item[Capa 2 — Monitoreo pasivo] Observa pasivamente el estado de los
+    contenedores con acceso de lectura externo al sistema. Su única responsabilidad
+    es generar un registro estructurado de eventos detectables: modificaciones del
+    sistema de archivos, procesos creados, entradas de log, entre otros. Su
+    comportamiento es análogo al de un SIEM (Security Information and Event
+Management) dedicado al escenario de ataque.
+
+    \item[Capa 3 — Motor de evaluación] Consume los eventos generados por la Capa 2
+    y evalúa reglas declarativas definidas en archivos YAML que especifican las
+    condiciones de victoria. Determina automáticamente cuándo un participante ha
+    completado objetivos sin requerir la entrada manual de \textit{flags}.
+
+    \item[Capa 4 — Administración] Gestiona el ciclo de vida completo de los
+    entornos de práctica y mantiene registro del progreso de todos los
+    participantes. Proporciona interfaces para que educadores y estudiantes
+    interactúen con el sistema mediante línea de comandos.
+\end{description}
+
 \subsection{Flujo principal}
+
+\begin{enumerate}
+    \item \textbf{Carga de escenarios}: el educador entrega una imagen del sistema
+    vulnerable junto con un archivo YAML que define los objetivos del ejercicio,
+    las condiciones de validación y los criterios de éxito.
+
+    \item \textbf{Generación de entornos}: la plataforma instancia la imagen
+    proporcionada, creando un entorno aislado por cada participante que intentará
+    explotar la vulnerabilidad.
+
+    \item \textbf{Validación automática}: el motor de validación examina
+    constantemente el estado del contenedor, comparando el estado actual contra
+    las reglas definidas en el archivo YAML.
+
+    \item \textbf{Gestión}: tanto educadores como estudiantes utilizan herramientas
+    de línea de comandos para interactuar con sus respectivos entornos y monitorear
+    el avance.
+\end{enumerate}

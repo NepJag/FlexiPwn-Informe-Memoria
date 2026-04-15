@@ -1,8 +1,108 @@
 \chapter{Estado del Arte}
 
+En la actualidad existe una amplia variedad de plataformas que apoyan el
+aprendizaje en ciberseguridad. La mayoría recurre a la ludificación con el
+objetivo de facilitar el entendimiento mediante ejercicios prácticos, tanto
+de seguridad ofensiva como defensiva.
+
 \section{Plataformas Comerciales}
+
+Entre las plataformas comerciales más reconocidas están TryHackMe
+(THM)~\cite{tryhackme} y Hack The Box (HTB)~\cite{hackthebox}, las cuales
+poseen contenido de alta calidad y ofrecen cursos y certificaciones en
+ciberseguridad. Ambas comparten el método de conexión a entornos hospedados
+por ellos y validación de \textit{flags} para sus módulos de aprendizaje, lo
+que eventualmente facilita la trampa si no se toman precauciones adecuadas.
+
 \section{Plataformas con Validación Automática}
+
+PortSwigger Web Security Academy~\cite{portswigger} es una plataforma que
+se especializa en enseñar seguridad de aplicaciones web. Es de las pocas
+que incluye un sistema automático para detectar avances al explotar una
+vulnerabilidad, sin requerir validación manual mediante \textit{flags}. No
+obstante, no es autohospedable y está enfocada exclusivamente a
+vulnerabilidades web no personalizables.
+
 \section{Plataformas de Estáticas}
+
+Damn Vulnerable Web Application (DVWA)~\cite{dvwa} es un buen método para
+aprender seguridad web, pero no tiene capacidad de generar escenarios
+personalizados de forma directa ni seguimiento de progreso, y se valida con
+mensajes simples al explotar cierta vulnerabilidad.
+
 \section{Plataformas de Tipo CTF}
+
+CTFd~\cite{ctfd}, RootTheBox~\cite{rootthebox} y picoCTF~\cite{picoctf} son
+herramientas para preparar competencias de captura la bandera
+(\textit{capture the flag}), con roles pedagógicos como el del curso
+CC5325 Taller de Hacking Competitivo. Sin embargo, para validar un ejercicio
+resuelto también requieren ingresar \textit{flags} manualmente, permitiendo
+posibles copias entre estudiantes.
+
 \section{Plataformas Avanzadas}
+
+Existen opciones más complejas como CyberRangeCZ~\cite{cyberrangecz},
+EDURange~\cite{edurange} o Tectonic~\cite{tectonic} para simular campos de
+entrenamiento de ciberseguridad (\textit{cyber ranges}), los cuales requieren
+mayor conocimiento de infraestructura técnica, lo que los hace opciones poco
+accesibles para contextos educativos pequeños.
+
 \section{Oportunidad Identificada}
+
+El análisis comparativo presentado en la Tabla~\ref{tab:comparacion} demuestra
+que no existe una solución que integre validación automática basada en estado
+del sistema, sea autohospedable y sea completamente personalizable. Esta
+combinación es un aporte relevante para quien desee generar instancias de
+aprendizaje de seguridad ofensiva de forma rápida, donde baste cambiar la
+imagen del sistema para modificar completamente el objetivo de la actividad.
+
+Para facilitar la comparación, se establecieron cuatro criterios clave: \textbf{Autohospedable} se
+refiere a la capacidad de instalar y ejecutar la plataforma en infraestructura propia; \textbf{Gratuito}
+indica si se puede usar sin costo (\textit{Freemium} implica funcionalidades limitadas gratuitas);
+\textbf{Validación} describe el método para verificar ejercicios completados; y \textbf{Personalizable} evalúa
+la capacidad de crear contenido propio.
+
+\begin{table}[h]
+\centering
+\caption{Comparación de plataformas de aprendizaje en ciberseguridad.}
+\label{tab:comparacion}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Plataforma} & \textbf{Autohospedable} & \textbf{Gratuito} &
+\textbf{Validación} & \textbf{Personalizable} \\
+\hline
+TryHackMe     & No  & Freemium & Flags     & No \\
+Hack The Box  & No  & Freemium & Flags     & No \\
+PortSwigger   & No  & Gratuito & Automática & No \\
+DVWA          & Sí  & Gratuito & Manual    & Limitado \\
+CTFd          & Sí  & Gratuito & Flags     & Sí \\
+RootTheBox    & Sí  & Gratuito & Flags     & Sí \\
+picoCTF       & Sí  & Gratuito & Flags     & Sí \\
+CyberRangeCZ  & Sí  & Gratuito & Multicriterio & Sí \\
+EDURange      & Sí  & Gratuito & Multicriterio & Sí \\ \hline
+\textbf{Propuesta} & \textbf{Sí} & \textbf{Gratuito} &
+\textbf{Automática} & \textbf{Sí} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Valor Pedagógico}
+
+La validación automática basada en estado ofrece ventajas pedagógicas
+significativas sobre los sistemas tradicionales de \textit{flags}. Mientras
+que las \textit{flags} solo indican si un estudiante alcanzó un objetivo
+final, un sistema de monitoreo de estado registra la evolución completa del
+ataque: qué servicios enumeró, qué vulnerabilidades intentó explotar, o qué
+archivos modificó. Esta trazabilidad permite a los educadores entender no
+solo si un estudiante tuvo éxito, sino \textbf{cómo} lo logró, detectar dificultades
+comunes y proporcionar retroalimentación más específica y formativa.
+
+\subsection{Contribución Técnica}
+
+Este trabajo contribuye al ecosistema de herramientas de detección de
+intrusiones \textit{open source}. Los sistemas comerciales de detección (IDS/IPS)
+suelen mantener sus reglas como propiedad intelectual cerrada, impidiendo
+que la comunidad los evalúe y mejore. Un proyecto educativo que implemente
+detección basada en reglas declarativas, con código completamente abierto y
+auditable, permite que investigadores y profesionales estudien, adapten y
+evolucionen estos enfoques.
