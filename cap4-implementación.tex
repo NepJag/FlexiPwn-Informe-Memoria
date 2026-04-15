@@ -1,1 +1,57 @@
 \chapter{Implementación}
+
+Este capítulo describe las decisiones técnicas tomadas durante la
+implementación de FlexiPwn, organizadas según las capas de la arquitectura.
+
+\section{Stack Tecnológico}
+
+% [Pegar aquí el texto del documento stack-tecnologico-flexipwn.pdf
+% que ya tienes generado. Incluye: lenguaje Python 3.12, uv,
+% decisión por cada capa, tabla resumen al final]
+
+\section{Decisión de Tecnología de Virtualización}
+
+% [Pegar aquí el texto del documento virt-decision-flexipwn.pdf,
+% incluyendo la tabla comparativa y la justificación de Docker rootless]
+
+\section{Capa 1: Orquestador de Contenedores}
+
+% [Descripción de DockerRootlessProvider, detección de socket,
+% estrategia de baseline con healthcheck, rollback en create()]
+
+\section{Capa 2: Monitoreo Pasivo}
+
+% [Descripción de FilesystemMonitor con container.diff(),
+% ProcessMonitor con container.top() y lstart,
+% MonitorOrchestrator, y baseline de startup]
+
+\subsection{Limitaciones del Monitoreo por Polling}
+
+El monitor de procesos consulta \texttt{container.top()} cada dos segundos.
+Procesos que nacen y terminan dentro de ese intervalo son invisibles para
+el sistema. Los vectores no detectables en el estado actual incluyen:
+procesos efímeros con duración menor a dos segundos, técnicas de
+\textit{PPID spoofing}, y ataques \textit{fileless} mediante llamadas al
+sistema como \texttt{ptrace} o \texttt{memfd\_create}. Para el alcance
+educativo del proyecto, este nivel de detección es aceptable dado que los
+ejercicios no requieren detectar procesos sub-segundo ni técnicas de evasión
+avanzadas esperables en un atacante universitario.
+
+De forma análoga, \texttt{container.diff()} retorna una instantánea del
+estado acumulado del filesystem desde el inicio del contenedor. Para
+distinguir cambios del sistema de inicialización de cambios realizados por
+el estudiante, se captura un \textit{baseline} del \textit{diff} una vez
+que el contenedor está estable. Si la imagen tiene un \texttt{HEALTHCHECK}
+configurado, el sistema espera hasta que el contenedor reporte estado
+\texttt{healthy} antes de capturar el baseline; de lo contrario, espera un
+delay configurable (por defecto 3 segundos) como mecanismo de respaldo.
+
+\section{Capa 3: Motor de Evaluación}
+
+% [Descripción del EvaluationEngine, tipos de target implementados,
+% condiciones any/all, evaluadores de Capa 3]
+
+\section{Capa 4: Administración}
+
+% [Descripción de la CLI con Typer + Rich, comando demo privesc,
+% MonitorOrchestrator como punto de integración]
