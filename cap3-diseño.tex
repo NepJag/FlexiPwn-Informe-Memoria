@@ -1,1 +1,477 @@
 \chapter{Diseño}
+
+Este capítulo describe las decisiones de diseño del sistema FlexiPwn,
+incluyendo la arquitectura de capas, los contratos entre ellas, el modelo
+de datos y el modelo de aislamiento de entornos.
+
+\section{Arquitectura de Capas}
+
+\subsection{Justificación}
+
+La decisión de estructurar el sistema en capas responde a principios
+arquitectónicos que se identificaron como necesarios a partir de las pruebas
+de concepto desarrolladas previo al semestre. Las limitaciones encontradas
+convergieron hacia un patrón común: la mezcla de responsabilidades entre el
+sistema a vulnerar, el mecanismo de detección y la lógica de evaluación
+resultaba en implementaciones frágiles, poco extensibles y fuertemente
+acopladas a tecnologías específicas. A partir de este análisis emergieron 
+cuatro principios que fundamentan la arquitectura de cuatro capas.
+
+\subsubsection*{Separación de responsabilidades}
+
+Cada capa tiene una función específica y bien definida, lo que facilita el
+desarrollo, \textit{testing} y mantenimiento independiente de cada
+componente. Esta separación permite trabajar en capas distintas sin
+interferencia, y simplifica la depuración cuando surgen problemas. En las
+pruebas de concepto previas, la generación de eventos y la evaluación de
+condiciones de éxito convivían en el mismo módulo, lo que hacía que agregar
+un nuevo tipo de fuente de eventos o cambiar la lógica de evaluación
+requiriera modificar el mismo archivo, aumentando el acoplamiento y la
+fragilidad del sistema. En FlexiPwn, estas responsabilidades están
+explícitamente separadas: la Capa 2 solo observa y genera eventos, la
+Capa 3 solo evalúa condiciones, y ninguna de las dos modifica el estado
+de los entornos.
+
+\subsubsection*{Reutilización y flexibilidad}
+
+Al abstraer las capas inferiores mediante interfaces bien definidas, el
+sistema puede soportar múltiples tecnologías de virtualización sin modificar
+las capas superiores de validación y administración. Esto permite adaptar
+el sistema a diferentes contextos e infraestructuras. La interfaz abstracta
+\texttt{EnvironmentProvider} encapsula toda la complejidad necesaria para distintas 
+tecnologías de virtualización, como Docker \textit{rootless}: cambiar la tecnología de virtualización solo requiere
+implementar esa interfaz en una nueva clase, sin tocar el motor de
+evaluación ni la \textit{CLI} de administración. Por ejemplo, una futura
+implementación \texttt{PodmanProvider} o \texttt{KVMProvider} no tendría
+impacto en las capas 3 y 4.
+
+\subsubsection*{Extensibilidad}
+
+Nuevos tipos de validaciones o métodos de monitoreo pueden agregarse a las
+capas 2 y 3 sin modificar los sistemas vulnerables ni la administración.
+Por ejemplo, agregar soporte para detectar exfiltración de datos mediante
+DNS \textit{tunneling} solo requiere modificar la Capa 2 para capturar ese
+tipo de eventos y la Capa 3 para evaluar las reglas correspondientes. El
+diseño de registro de evaluadores mediante un patrón de \textit{registry}
+en la Capa 3 permite añadir nuevos tipos de \textit{target} sin modificar
+el motor de evaluación central.
+
+\subsubsection*{Agnóstico a la implementación}
+
+Los educadores que crean desafíos no necesitan conocer los detalles de cómo
+funciona la detección; solo deben proporcionar una imagen vulnerable y un
+archivo YAML con las reglas declarativas. Esto reduce significativamente la
+barrera de entrada para crear contenido educativo. De igual forma, los
+sistemas vulnerables de Capa 1 no saben que están siendo monitoreados, lo
+cual es un principio crítico para la validez pedagógica del ejercicio: el
+entorno debe comportarse exactamente como lo haría en producción, sin
+cooperar con el sistema de detección. Este principio fue el aprendizaje más
+importante extraído de las pruebas de concepto previas, donde la lógica de
+detección estaba parcialmente implementada dentro del sistema vulnerable,
+violando la separación y limitando la aplicabilidad del enfoque.
+
+\subsubsection*{\textit{Trade-offs} de la arquitectura}
+
+Esta arquitectura introduce complejidad adicional en comparación con un
+diseño monolítico, particularmente en la coordinación entre capas, la
+necesidad de definir interfaces claras y el \textit{overhead} de
+comunicación entre componentes. Sin embargo, los beneficios en términos
+de mantenibilidad, portabilidad y capacidad de evolución del sistema
+justifican esta complejidad inicial, especialmente considerando que se
+espera que el sistema crezca con nuevos tipos de validadores, tecnologías
+de virtualización y escenarios de ejercicios a futuro.
+
+\subsection{Descripción de Capas}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\input{diagramas/arquitectura.tex}%
+}% fin resizebox
+\caption{Arquitectura de cuatro capas de FlexiPwn.}
+\label{fig:arquitectura}
+\end{figure}
+
+\subsubsection{Capa 1: Sistemas Virtualizados}
+
+Contiene en estado virtualizado todos los sistemas y redes que componen el
+escenario de ataque. Se divide en dos subcapas con roles diferenciados pero
+complementarios.
+
+La \textbf{Capa 1a} representa el sistema vulnerable objetivo. Esta subcapa
+autocontiene todo el estado (archivos, memoria, procesos) necesario para
+determinar si un ataque fue exitoso. Es accesible al participante pero no
+comparte información de forma activa con otras capas del sistema, y no sabe
+que está siendo monitoreada.
+
+La \textbf{Capa 1b} proporciona al participante un entorno con herramientas
+para ejecutar ataques. No tiene más acceso al sistema vulnerable que el
+necesario para ejecutar el ataque, típicamente conexión a la misma red interna.
+
+\subsubsection{Capa 2: Generación de Eventos}
+
+Tiene acceso de lectura externo al estado de los contenedores de Capa 1. Su
+única responsabilidad es generar un registro estructurado de eventos de
+seguridad detectables: cambios en el sistema de archivos, nuevos procesos,
+entradas de log de aplicación. Su comportamiento es cercano al de un SIEM
+dedicado al escenario de ataque.
+
+El principio fundamental de esta capa es la \textbf{pasividad total}: no
+ejecuta ningún comando dentro del contenedor ni modifica su estado. Los
+mecanismos de observación son completamente externos:
+
+\begin{itemize}
+    \item \textbf{Filesystem}: mediante \texttt{container.diff()} del Docker
+    SDK, que retorna todos los archivos modificados, creados o eliminados
+    respecto a la imagen original, sin montar volúmenes en el contenedor.
+
+    \item \textbf{Procesos}: mediante \texttt{container.top()} con argumentos
+    \texttt{-o pid,euid,ppid,cmd}, que lee la información de procesos
+    desde el kernel del host sin ejecutar nada dentro del contenedor.
+
+    \item \textbf{Logs de aplicación}: mediante lectura directa de archivos
+    de log en el host, escritos por el contenedor a través de volúmenes
+    montados en rutas explícitamente definidas en el YAML del escenario.
+\end{itemize}
+
+\subsubsection{Capa 3: Motor de Evaluación}
+
+Consume los eventos generados por la Capa 2 y evalúa condiciones de victoria
+definidas mediante reglas declarativas en archivos YAML. Determina cuándo un
+participante ha completado exitosamente un ejercicio sin requerir la entrada
+manual de \textit{flags}. Esta capa no tiene acceso directo a los contenedores:
+todo su conocimiento del mundo exterior llega exclusivamente por los eventos
+de Capa 2.
+
+\subsubsection{Capa 4: Administración}
+
+Gestiona el ciclo de vida de los entornos: crear, reiniciar o destruir según
+sea necesario. Mantiene registro del progreso de todos los participantes según
+lo indicado por la Capa 3 y proporciona interfaces de línea de comandos para
+educadores y estudiantes.
+
+\section{Contratos entre Capas}
+
+Los contratos definen qué datos cruzan cada frontera, en qué formato, quién
+los produce y quién los consume. El objetivo es que cada capa pueda
+desarrollarse, testearse y reemplazarse de forma independiente siempre que
+respete estos contratos.
+
+\subsection{Capa 1 → Capa 2: Estado Observable}
+
+La Capa 1 no comunica nada activamente a la Capa 2. Este es un contrato
+implícito: la Capa 2 lee el estado de la Capa 1, y la Capa 1 no sabe que
+está siendo observada. La interfaz entre ambas es el estado observable del
+entorno virtualizado, accedido a través de tres canales descritos en la
+Sección anterior.
+
+\begin{sloppypar}
+    Toda interacción con los contenedores se canaliza a través de la interfaz
+    abstracta \texttt{EnvironmentProvider}, que encapsula la tecnología de
+    virtualización:
+\end{sloppypar}
+
+\begin{verbatim}
+class EnvironmentProvider(ABC):
+    def create(self, scenario_id, participant_id,
+               image, attacker_image, ...) -> Environment
+    def destroy(self, env_id) -> None
+    def reset(self, env_id) -> None
+    def get_status(self, env_id) -> Environment
+    def exec_run(self, env_id, cmd, ...) -> ExecResult
+    def get_filesystem_diff(self, env_id) -> list[dict]
+    def get_processes(self, env_id) -> list[ProcessInfo]
+    def cleanup_all(self) -> None
+\end{verbatim}
+
+Este diseño permite reemplazar la tecnología de virtualización sin que
+ninguna otra capa lo note.
+
+\subsection{Capa 2 → Capa 3: Eventos Estructurados}
+
+La Capa 2 produce eventos JSON estructurados que la Capa 3 consume. Este
+es el contrato más crítico del sistema: define el lenguaje común entre la
+observación y la evaluación. Todos los eventos comparten un envelope común
+validado por Pydantic v2:
+
+\begin{verbatim}
+class MonitorEvent(BaseModel):
+    timestamp: datetime
+    monitor_type: Literal["filesystem", "process", "log"]
+    event_type: str
+    env_id: str
+    participant_id: str
+    scenario_id: str
+    details: dict[str, Any]
+\end{verbatim}
+
+El campo \texttt{monitor\_type} identifica la fuente del evento y
+\texttt{event\_type} especifica la naturaleza del cambio. El campo
+\texttt{details} varía según el monitor que produce el evento.
+
+\subsubsection*{Eventos de filesystem}
+
+Generados por el monitor de filesystem a partir de \texttt{container.diff()}.
+Los \texttt{event\_type} posibles y los campos de \texttt{details} asociados
+son:
+
+\begin{itemize}
+    \item \textbf{\texttt{file\_created}}: archivo nuevo detectado respecto
+    a la imagen original. \texttt{details} contiene \texttt{path} (ruta
+    absoluta) y \texttt{kind} (valor 1, según la convención de
+    \texttt{container.diff()}).
+
+    \item \textbf{\texttt{file\_modified}}: archivo existente en la imagen
+    que fue modificado. \texttt{details} contiene \texttt{path} y
+    \texttt{kind} (valor 0).
+
+    \item \textbf{\texttt{file\_deleted}}: archivo de la imagen original
+    eliminado durante el ejercicio. \texttt{details} contiene \texttt{path}
+    y \texttt{kind} (valor 2). Cabe notar que este tipo de evento no tiene
+    un target correspondiente en el schema YAML: ningún escenario del
+    sistema evalúa la eliminación de archivos como condición de éxito en
+    el estado actual.
+\end{itemize}
+
+\subsubsection*{Eventos de procesos}
+
+Generados por el monitor de procesos a partir de \texttt{container.top()}.
+El único \texttt{event\_type} implementado es:
+
+\begin{itemize}
+    \item \textbf{\texttt{process\_spawned}}: proceso nuevo detectado
+    respecto al \textit{baseline} capturado al iniciar el monitor. Los
+    campos de \texttt{details} son \texttt{pid}, \texttt{euid} (effective
+    UID del proceso), \texttt{ppid}, \texttt{cmd} (comando completo),
+    \texttt{lstart} (timestamp de inicio del proceso en formato
+    \texttt{"Mon Oct 23 10:25:44 2023"}) y \texttt{process\_id} (hash
+    SHA-256 truncado a 12 caracteres de la combinación \texttt{pid:cmd},
+    que identifica unívocamente al proceso incluso ante reutilización de
+    PID).
+\end{itemize}
+
+\subsubsection*{Eventos de logs}
+
+Generados por el monitor de logs mediante lectura directa de archivos en
+el host escritos a través de volúmenes Docker.
+\begin{sloppypar}
+    \begin{itemize}
+        \item \textbf{\texttt{log\_entry}}: línea de log parseada exitosamente
+        como JSON. \texttt{details} contiene \texttt{source\_file} (ruta del
+        archivo de log en el host) y \texttt{parsed} (objeto JSON completo de
+        la línea detectada).
+    \end{itemize}
+\end{sloppypar}
+    
+La Capa 2 garantiza que todo evento emitido cumple el schema antes de
+enviarse, que los eventos se emiten en orden cronológico por monitor, y
+que no se emiten duplicados para el mismo cambio de estado.
+
+\subsection{Capa 3 → Capa 4: Resultados de Evaluación}
+
+La Capa 3 comunica a la Capa 4 los resultados de la evaluación de
+condiciones de éxito mediante dos estructuras Pydantic complementarias.
+
+\texttt{TargetResult} representa el estado de evaluación de un objetivo
+individual:
+
+\begin{verbatim}
+class TargetResult(BaseModel):
+    target_index: int
+    target_type: str
+    description: str
+    matched: bool = False
+    matched_at: datetime | None = None
+    trigger_event: MonitorEvent | None = None
+\end{verbatim}
+
+El campo \texttt{trigger\_event} contiene el \texttt{MonitorEvent} exacto
+que causó el \textit{match}, lo que permite al educador reconstruir no solo
+qué objetivo se completó, sino qué acción concreta del estudiante lo
+disparó. Esta trazabilidad es uno de los valores pedagógicos diferenciales
+del sistema respecto a los sistemas de \textit{flags}.
+
+\texttt{EvaluationResult} agrega el estado de todos los targets de un
+escenario para un participante:
+
+\begin{verbatim}
+class EvaluationResult(BaseModel):
+    scenario_id: str
+    participant_id: str
+    env_id: str
+    condition: str                        # "any" | "all"
+    targets: list[TargetResult]
+    completed: bool
+    completed_at: datetime | None = None
+    progress: float                       # Matched/Total
+\end{verbatim}
+
+El campo \texttt{progress} se calcula como la razón entre el número de
+targets alcanzados y el total de targets definidos en el escenario. El
+campo \texttt{completed} es \texttt{True} si y solo si la condición
+(\texttt{any} o \texttt{all}) se satisface con el conjunto de targets
+marcados como \texttt{matched}.
+
+El \texttt{EvaluationEngine} invoca el callback \texttt{on\_update} cada
+vez que un target cambia de estado o cuando \texttt{completed} pasa de
+\texttt{False} a \texttt{True}. Los logros son irreversibles dentro de
+un \textit{run}: una vez que \texttt{matched} es \texttt{True}, no vuelve
+a \texttt{False}. La Capa 4 consume estos resultados para persistirlos
+en SQLite mediante la entidad \texttt{TargetResult} y para notificar al
+usuario a través de la CLI.
+\subsection{Capa 4 → Capa 1: Ciclo de Vida}
+
+La Capa 4 controla la creación, destrucción y \textit{reset} de los
+entornos a través de la interfaz \texttt{EnvironmentProvider}. Es la única
+capa que modifica el estado de la Capa 1.
+
+\subsection{Educador → Capa 3: Archivo YAML del Escenario}
+
+El educador define un escenario mediante un único archivo YAML que la
+Capa 3 parsea y valida con Pydantic v2 antes de cualquier ejecución.
+Este archivo es la única pieza de configuración que el educador necesita
+escribir, además de la imagen Docker del sistema vulnerable.
+
+La estructura completa del archivo es la siguiente:
+
+\begin{verbatim}
+title: str               # nombre del ejercicio (requerido)
+description: str         # descripción del ejercicio (requerido)
+author: str              # autor del escenario (requerido)
+level: str               # beginner | intermediate | advanced
+category: str            # pwning | web | database | forensics | reversing
+
+environment:
+  image: str             # imagen Docker para Capa 1a (requerido)
+  attacker_image: str    # imagen Docker para Capa 1b (opcional)
+  log_paths: list[str]   # rutas de logs a monitorear (opcional)
+  ports: list[str]       # puertos a exponer "host:container" (opcional)
+  startup_delay_seconds: float  # delay de baseline si no hay HEALTHCHECK
+
+hints:
+  - str                  # pistas ordenadas para el estudiante (opcional)
+
+targets:                 # lista de objetivos (requerido, mínimo 1)
+  - type: str
+    description: str
+    # campos específicos según el tipo de target
+
+condition: str           # any | all (requerido)
+timeout_seconds: int     # tiempo máximo en segundos (default: 1800)
+\end{verbatim}
+
+Los tipos de target disponibles y sus campos específicos son:
+
+\begin{description}
+    \item[\texttt{file\_created}] Detecta la creación de un archivo nuevo.
+    Requiere \texttt{path} (ruta absoluta o directorio terminado en
+    \texttt{/}). Acepta \texttt{pattern} (glob) cuando \texttt{path} es
+    un directorio.
+
+    \item[\texttt{file\_modified}] Detecta la modificación de un archivo
+    existente en la imagen original. Requiere \texttt{path} (ruta absoluta).
+
+    \item[\texttt{file\_exists}] Verifica que un archivo existe y
+    opcionalmente contiene un texto específico. Requiere \texttt{path}.
+    Acepta \texttt{contains} (substring).
+
+    \item[\texttt{process\_running}] Detecta un proceso activo con
+    características específicas. Requiere \texttt{euid} (effective UID
+    esperado; 0 para root) y \texttt{cmd\_contains} (substring en el
+    comando del proceso).
+
+    \item[\texttt{log\_pattern}] Detecta una entrada de log que cumpla
+    condiciones sobre campos parseados. Requiere \texttt{field\_matches}
+    (diccionario de campo → valor esperado).
+
+    \item[\texttt{http\_response\_contains}] Detecta contenido específico
+    en una respuesta HTTP. Requiere \texttt{url\_path} y
+    \texttt{body\_contains}. Acepta \texttt{status\_code}.
+
+    \item[\texttt{database\_query\_result}] Detecta que una consulta SQL
+    retornó un resultado específico. Requiere \texttt{result\_contains}.
+    Acepta \texttt{table}.
+\end{description}
+
+A modo de ejemplo, el siguiente archivo YAML define un escenario de
+escalación de privilegios mediante \texttt{sudo vim}:
+
+\begin{verbatim}
+title: "Privilege escalation via sudo vim"
+description: >
+  El usuario ctfuser tiene permisos sudo sobre vim sin contraseña.
+  Escala privilegios y crea evidencia de acceso root.
+author: "Dylan Riquelme"
+level: beginner
+category: pwning
+
+environment:
+  image: "vuln-privesc"
+
+hints:
+  - "Revisa tus permisos sudo con: sudo -l"
+  - "Vim puede ejecutar comandos del sistema con :!comando"
+
+targets:
+  - type: file_created
+    path: "/root/"
+    pattern: "*.txt"
+    description: "Archivo .txt creado en directorio root"
+  - type: file_modified
+    path: "/etc/passwd"
+    description: "Archivo de usuarios del sistema modificado"
+  - type: process_running
+    euid: 0
+    cmd_contains: "/bin/bash"
+    description: "Shell root activa"
+
+condition: all
+timeout_seconds: 1800
+\end{verbatim}
+
+El schema se valida al momento de cargar el escenario, antes de cualquier
+ejecución. Los errores de validación producen mensajes que indican el campo
+problemático y el valor esperado, sin requerir ejecutar el sistema para
+descubrirlos.
+
+\section{Modelo de Datos}
+
+El estado del sistema se persiste en una base de datos SQLite gestionada
+mediante SQLModel. La elección de SQLite responde al contexto de despliegue:
+una instalación autohospedada de escala pequeña a mediana que no justifica
+la operación de un servidor de base de datos independiente.
+
+El modelo contempla cuatro entidades principales:
+
+\textbf{Scenario} almacena los metadatos del escenario cargado por el
+educador, incluyendo la ruta al archivo YAML y campos desnormalizados para
+consultas directas sin parsear el YAML.
+
+\textbf{Participant} representa a un estudiante del sistema. Las credenciales
+(usuario y hash de contraseña) son generadas por el sistema y entregadas al
+estudiante por el educador.
+
+\textbf{ExerciseRun} vincula a un participante con un escenario y registra
+el estado del ejercicio. Tiene un índice único compuesto sobre
+(\texttt{scenario\_id}, \texttt{participant\_id}), garantizado tanto a nivel
+de lógica de negocio como de base de datos.
+
+\textbf{TargetResult} registra el estado de evaluación de cada objetivo
+individual dentro de un \textit{run}, incluyendo el evento exacto que causó
+el \textit{match} serializado como JSON.
+
+% [Aquí va el diagrama ERD como figura LaTeX]
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.85\textwidth]{imagenes/erd.pdf}
+% \caption{Diagrama entidad-relación del modelo de datos de FlexiPwn.}
+% \label{fig:erd}
+% \end{figure}
+
+\section{Aislamiento de Entornos}
+
+% [Pegar aquí el texto completo de aislamiento que ya escribimos juntos,
+% el que incluye: identificación única de entornos, aislamiento de red,
+% nomenclatura de contenedores, bind mounts efímeros para logs,
+% etiquetado de recursos, y consideraciones de seguridad]
+% Lo tienes en el chat como "Aislamiento de Entornos de Práctica"
