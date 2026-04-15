@@ -1,0 +1,180 @@
+\begin{tikzpicture}[
+    % Estilos base
+    every node/.style={font=\sffamily},
+    arr/.style={-{Stealth[length=7pt]}, thick, gray!60!black},
+    arrin/.style={-{Stealth[length=5pt]}, gray!50!black, semithick},
+    % Sub-bloque interior
+    sub/.style={rounded corners=3pt, draw=#1!30, fill=white,
+                minimum height=1.2cm, text centered,
+                font=\sffamily\large, inner sep=6pt},
+    % Etiqueta de flecha
+    lbl/.style={font=\sffamily\normalsize, text=gray!70!black, fill=white,
+                inner sep=2pt},
+    % Etiqueta vertical
+    vlbl/.style={font=\sffamily\normalsize, text=gray!70!black, fill=white,
+                 inner sep=2pt, rotate=90, anchor=south},
+]
+
+% ── Constantes de layout ────────────────────────────
+\def\fullW{23}       % ancho capas completas
+\def\halfW{10}      % ancho cada capa media
+\def\midgap{2.8}     % espacio horizontal entre capas 3 y 2
+\def\vgap{1.8}       % espacio vertical entre filas
+\def\cx{9}           % centro X global
+
+% ═══════════════════════════════════════════════════
+% CAPA 4 — Administración (arriba, ancho completo)
+% ═══════════════════════════════════════════════════
+\node[rounded corners=5pt, draw=violet!40, fill=violet!6,
+      minimum width=\fullW cm, minimum height=4.8cm,
+      inner sep=12pt] (L4) at (\cx, 0) {};
+\node[font=\sffamily\bfseries\Large, text=violet!70!black]
+      at ([yshift=-20pt]L4.north) (t4) {Capa 4 — Administración};
+% Sub-bloques
+\node[sub=violet, text width=4.6cm, below=10pt of t4, xshift=-5.4cm]
+      (c4a) {CLI\\[-2pt]{\normalsize Typer + Rich}};
+\node[sub=violet, text width=4.6cm, right=20pt of c4a]
+      (c4b) {Persistencia\\[-2pt]{\normalsize SQLModel + SQLite}};
+\node[sub=violet, text width=4.6cm, right=20pt of c4b]
+      (c4c) {Ciclo de vida\\[-2pt]{\normalsize Scenario, Run, User}};
+% Flechas internas
+\draw[arrin] (c4a.east) -- (c4b.west);
+\draw[arrin] (c4c.west) -- (c4b.east);
+% Bloque Modelos
+\node[sub=violet, text width=15.2cm, below=10pt of c4b]
+      (c4d) {Modelos: Scenario | Participant | ExerciseRun};
+
+% ═══════════════════════════════════════════════════
+% FILA MEDIA: Capa 3 (izquierda) + Capa 2 (derecha)
+% ═══════════════════════════════════════════════════
+\pgfmathsetmacro{\midY}{-4.4/2 - \vgap - 6.0/2}
+
+% ── Capa 3 — Motor de evaluación ──────────────────
+\pgfmathsetmacro{\layerIIIcx}{\cx - \midgap/2 - \halfW/2}
+\node[rounded corners=5pt, draw=green!30!black!40, fill=green!5,
+      minimum width=\halfW + 9.5cm, minimum height=6.0cm,
+      inner sep=12pt, anchor=north]
+      (L3) at (\layerIIIcx, \midY + 6.0/2) {};
+\node[font=\sffamily\bfseries\Large, text=green!55!black]
+      at ([yshift=-20pt]L3.north) (t3) {Capa 3 — Motor de evaluación};
+% Schema YAML → Motor de reglas → Evaluador
+\node[sub=green!70!black, text width=2cm, below=10pt of t3, xshift=-3.05cm]
+      (c3a) {Schema YAML\\[-2pt]{\normalsize Pydantic v2}};
+\node[sub=green!70!black, text width=2.4cm, right=12pt of c3a]
+      (c3b) {Motor de reglas\\[-2pt]{\normalsize Python puro}};
+\node[sub=green!70!black, text width=2.2cm, right=12pt of c3b]
+      (c3c) {Evaluador\\[-2pt]{\normalsize any / all}};
+% Flechas internas
+\draw[arrin] (c3a.east) -- (c3b.west);
+\draw[arrin] (c3b.east) -- (c3c.west);
+% Tipos de target
+\node[sub=green!70!black, text width=7cm, below=10pt of c3b]
+      (c3d) {Tipos de target\\[-2pt]{\normalsize file\_created, process\_spawned, etc.}};
+
+% ── Capa 2 — Monitoreo pasivo ─────────────────────
+\pgfmathsetmacro{\layerIIcx}{\cx + \midgap/2 + \halfW/2}
+\node[rounded corners=5pt, draw=orange!60!red!40, fill=orange!5!red!2,
+      minimum width=\halfW cm, minimum height=6.0cm,
+      inner sep=12pt, anchor=north]
+      (L2) at (\layerIIcx, \midY + 6.0/2) {};
+\node[font=\sffamily\bfseries\Large, text=orange!65!red]
+      at ([yshift=-20pt]L2.north) (t2) {Capa 2 — Monitoreo pasivo};
+% Los 3 monitores
+\node[sub=orange!70!red, text width=2.2cm, below=28pt of t2, xshift=-2.4cm]
+      (c2a) {Filesystem\\[-2pt]{\normalsize c.diff()}};
+\node[sub=orange!70!red, text width=1.8cm, right=6pt of c2a]
+      (c2b) {Procesos\\[-2pt]{\normalsize c.top()}};
+\node[sub=orange!70!red, text width=1.8cm, right=6pt of c2b]
+      (c2c) {Logs\\[-2pt]{\normalsize volúmenes}};
+% Caja punteada orquestador
+\node[rounded corners=3pt, draw=orange!50!red, densely dotted, thick,
+      inner sep=8pt, fit=(c2a)(c2b)(c2c),
+      label={[font=\sffamily\normalsize, text=orange!60!red]above:Monitor Orquestador}]
+      (orch) {};
+% Eventos JSON
+\node[sub=orange!70!red, text width=7cm, below=10pt of orch]
+      (c2d) {Eventos JSON estructurados\\[-2pt]{\normalsize timestamp, monitor\_type, etc.}};
+
+% ═══════════════════════════════════════════════════
+% CAPA 1 — Entornos virtualizados (abajo, ancho completo)
+% ═══════════════════════════════════════════════════
+\pgfmathsetmacro{\layerItop}{\midY - 6.0/2 - \vgap}
+\node[rounded corners=5pt, draw=blue!40, fill=blue!5,
+      minimum width=\fullW cm, minimum height=3.6cm,
+      inner sep=12pt, anchor=north]
+      (L1) at (\cx, \layerItop) {};
+\node[font=\sffamily\bfseries\Large, text=blue!70!black]
+      at ([yshift=-24pt]L1.north) (t1) {Capa 1 — Entornos virtualizados (Docker rootless)};
+% 1a y 1b
+\node[sub=blue, text width=7.5cm, below=10pt of t1, xshift=-4.8cm]
+      (c1a) {\textbf{1a — Sistema vulnerable}\\[-2pt]
+      {\normalsize Imagen Docker personalizada}};
+\node[sub=blue, text width=7.5cm, right=2cm of c1a]
+      (c1b) {\textbf{1b — Sistema atacante}\\[-2pt]
+      {\normalsize Entorno y herramientas del estudiante}};
+% Flecha Red
+\draw[{Stealth[length=6pt]}-{Stealth[length=6pt]}, densely dashed,
+      blue!60, thick] (c1a.east) -- (c1b.west)
+      node[midway, fill=blue!5, font=\sffamily\large,
+           text=blue!60!black, inner sep=3pt] {Red};
+
+% ═══════════════════════════════════════════════════
+% FLECHAS ENTRE CAPAS
+% ═══════════════════════════════════════════════════
+
+% Capa 4 ↔ Capa 3 (vertical)
+\draw[arr] ([xshift=-16pt]L4.south -| L3.north)
+    -- ([xshift=-16pt]L3.north)
+    node[midway, lbl, left=2pt] {Config};
+\draw[arr] ([xshift=16pt]L3.north)
+    -- ([xshift=16pt]L4.south -| L3.north)
+    node[midway, lbl, right=2pt] {Resultados};
+
+% Capa 2 → Capa 3 (horizontal, eventos JSON)
+\draw[arr] (L2.west |- {$(L2.north)!0.5!(L2.south)$})
+    -- (L3.east |- {$(L3.north)!0.5!(L3.south)$})
+    node[midway, lbl, above=5pt] {Eventos JSON};
+
+% Capa 1 ↑ Capa 2 (3 flechas: filesystem, procesos, logs)
+\draw[arr] ([xshift=-3cm]L1.north -| L2.south)
+    -- ([xshift=-3cm]L2.south)
+    node[midway, lbl, left=1pt] {Lectura fs};
+\draw[arr] (L1.north -| L2.south)
+    -- (L2.south)
+    node[midway, lbl, left=1pt] {Lectura proc};
+\draw[arr] ([xshift=3cm]L1.north -| L2.south)
+    -- ([xshift=3cm]L2.south)
+    node[midway, lbl, left=1pt] {Lectura logs};
+
+% Capa 4 → Capa 1 (ciclo de vida, lateral derecho) — texto vertical
+\draw[arr, rounded corners=6pt]
+    (L4.east) -- ++(1.0, 0) |- (L1.east)
+    node[pos=0.255, vlbl] {Ciclo de vida};
+
+% ═══════════════════════════════════════════════════
+% ACTORES (debajo de Capa 1)
+% ═══════════════════════════════════════════════════
+\node[below=1cm of L1.south, xshift=-3.5cm,
+      font=\sffamily\large, align=center]
+      (est) {\textbf{Estudiante}\\[-2pt]{\normalsize vía CLI o SSH}};
+\node[below=1cm of L1.south, xshift=4.5cm,
+      font=\sffamily\large, align=center]
+      (edu) {\textbf{Educador}\\[-2pt]{\normalsize vía CLI}};
+
+% Estudiante → Capa 1 (directo, vertical)
+\draw[arr] (est.north) -- (est.north |- L1.south)
+    node[midway, lbl, left=2pt] {Ataca 1a desde 1b};
+
+% Educador → Capa 4 (rodea por la derecha) — texto vertical
+\draw[arr, rounded corners=6pt]
+    (edu.east) -- ++(\fullW/2 - 4.5 + 0.9, 0) |- ([yshift=-10pt]L4.east)
+    node[pos=0.3, vlbl] {Administra};
+
+% Educador → Schema YAML Capa 3 (rodea por la izquierda, pasa debajo de Estudiante) — texto vertical
+\draw[arr, rounded corners=6pt]
+    (edu.south) -- ++(0, -0.6)
+    -| ([xshift=-0.7cm]L3.west |- est.south)
+    |- (L3.west |- {$(L3.north)!0.35!(L3.south)$})
+    node[pos=0.4, vlbl] {YAML escenario};
+
+\end{tikzpicture}
