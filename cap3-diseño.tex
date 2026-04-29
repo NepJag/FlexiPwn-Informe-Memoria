@@ -475,3 +475,42 @@ el \textit{match} serializado como JSON.
 % nomenclatura de contenedores, bind mounts efímeros para logs,
 % etiquetado de recursos, y consideraciones de seguridad]
 % Lo tienes en el chat como "Aislamiento de Entornos de Práctica"
+
+El aislamiento entre los entornos de práctica de distintos participantes 
+opera en dos dimensiones complementarias: aislamiento de red y aislamiento 
+de filesystem.
+
+\subsection*{Modelo de red de doble capa}
+
+Cada entorno instancia dos redes Docker independientes con roles diferenciados. 
+La red interna (\texttt{flexipwn-\{env\_id\}}), creada con \texttt{internal=True}, 
+conecta el sistema vulnerable y el sistema atacante entre sí sin permitir 
+tráfico hacia el exterior. Esta configuración garantiza que un ejercicio de 
+explotación activa no genere tráfico hacia redes externas ni hacia otros 
+entornos del sistema. La red externa (\texttt{flexipwn-\{env\_id\}-ext}), 
+un bridge estándar sin restricciones, conecta exclusivamente el 
+contenedor atacante al host. Esto permite que el participante acceda al 
+entorno atacante mediante SSH desde su máquina, manteniendo al mismo tiempo 
+el contenedor vulnerable completamente aislado del exterior.
+
+El contenedor atacante opera en ambas redes simultáneamente: su interfaz 
+en la red interna le permite resolver el nombre DNS del vulnerable 
+(\texttt{flexipwn-\{env\_id\}-vulnerable}) y establecer conexiones hacia él; 
+su interfaz en la red externa permite que los port bindings definidos en 
+el YAML del escenario sean alcanzables desde el host. El contenedor 
+vulnerable solo tiene presencia en la red interna.
+
+El contenedor sidecar de captura de red (Sección~\ref{sec:capa2}) no se 
+conecta a ninguna red Docker directamente: comparte el namespace de red del 
+contenedor vulnerable mediante \texttt{--network container:\{nombre\_vulnerable\}}, 
+lo que le permite observar todo el tráfico del vulnerable sin introducir 
+interfaces adicionales en la topología de red del entorno.
+
+\subsection*{Aislamiento de filesystem}
+
+Los bind mounts efímeros descritos en la Sección~\ref{sec:implementacion} 
+se crean con permisos \texttt{0o700}, accesibles únicamente por el proceso 
+del daemon rootless. Al destruir el entorno, el árbol de directorios 
+completo se elimina mediante \texttt{shutil.rmtree()}. Los directorios de 
+captura de red, cuando existen, se eliminan en el mismo ciclo de destrucción, 
+antes de detener los contenedores.

@@ -46,10 +46,126 @@ configurado, el sistema espera hasta que el contenedor reporte estado
 \texttt{healthy} antes de capturar el baseline; de lo contrario, espera un
 delay configurable (por defecto 3 segundos) como mecanismo de respaldo.
 
+\subsection{Monitor de Red}
+\label{sec:capa2}
+
+Para escenarios que requieren observar tráfico de red, la Capa 2 instancia 
+un cuarto monitor: \texttt{NetworkMonitor}. A diferencia de los tres monitores 
+anteriores, este monitor depende de un contenedor sidecar que comparte el 
+namespace de red del sistema vulnerable.
+
+\subsubsection*{Contenedor sidecar}
+\begin{sloppypar}
+    Al crear el entorno, si el escenario define al menos un target de tipo 
+    \texttt{network\_*}, \texttt{DockerRootlessProvider} lanza un contenedor 
+    adicional basado en la imagen \texttt{nicolaka/netshoot} con la siguiente 
+    configuración:
+\end{sloppypar}
+
+\begin{itemize}
+    \item \textbf{Namespace de red compartido}: mediante 
+    \texttt{--network container:\{vulnerable\}}, el sidecar comparte 
+    exactamente el mismo namespace de red que el vulnerable. Esto hace 
+    visible todo el tráfico del vulnerable desde dentro del sidecar, 
+    incluyendo comunicaciones por la interfaz de loopback 
+    (\texttt{127.0.0.1}), que de otro modo no serían capturables desde 
+    una perspectiva externa.
+    
+    \item \textbf{Comando de captura}: \texttt{tcpdump -i any -A -n -l}, 
+    con un filtro opcional definido en el campo 
+    \texttt{environment.capture\_filter} del YAML del escenario 
+    (por ejemplo, \texttt{port 3306} para restringir la captura 
+    a tráfico MySQL).
+    
+    \item \textbf{Salida en bind mount}: la captura se escribe en un 
+    archivo \texttt{traffic.txt} en un directorio del host con 
+    permisos \texttt{0o700}, al que solo tiene acceso el proceso de 
+    FlexiPwn.
+\end{itemize}
+
+El uso de \texttt{-n} desactiva la resolución de nombres, forzando IPs 
+numéricas en el output y evitando que el parser del monitor falle ante 
+hostnames como \texttt{localhost}. El flag \texttt{-l} activa el 
+line-buffering de tcpdump, reduciendo la latencia entre la escritura 
+del paquete y su disponibilidad en el archivo del host.
+
+\subsubsection*{Parsing packet-based}
+
+\texttt{NetworkMonitor} lee el archivo \texttt{traffic.txt} de forma 
+incremental en cada ciclo de polling, procesando el output de tcpdump 
+como unidades de paquete completo en lugar de línea por línea. Esta 
+decisión es necesaria porque el output de \texttt{tcpdump -A} en modo 
+\texttt{-i any} mezcla bytes ASCII del payload con bytes binarios de 
+los headers TCP/IP, y el carácter \texttt{0x0a} (LF) puede aparecer 
+dentro de los headers, partiendo artificialmente el payload en múltiples 
+líneas si se procesa con \texttt{splitlines()}.
+
+El monitor detecta las cabeceras de paquete mediante una expresión regular 
+que acepta el formato de \texttt{-i any} (que incluye el nombre de interfaz 
+y dirección entre el timestamp y la IP) y extrae de ellas las IPs y 
+puertos de origen y destino. Las líneas entre cabeceras se acumulan en un 
+buffer de payload. Cuando se detecta una nueva cabecera, el buffer del 
+paquete anterior se procesa: se extrae todo el texto en rango ASCII 
+imprimible (\texttt{0x20--0x7e}), y si el resultado supera los cuatro 
+caracteres se emite un \texttt{MonitorEvent} de tipo \texttt{network\_payload} 
+con el texto extraído y los metadatos del paquete. Adicionalmente, si la 
+cabecera contiene \texttt{Flags [S.]}, se emite un evento 
+\texttt{network\_connection} con la IP y puerto de destino.
+
+Una implicación importante del modelo packet-based es que el último 
+paquete de una ráfaga de tráfico corta podría quedar atrapado en el 
+buffer si no llega una cabecera posterior que dispare su procesamiento. 
+Para evitar esto, al final de cada ciclo de polling el monitor procesa 
+el paquete en curso si el buffer no está vacío, sin esperar al siguiente 
+ciclo.
+
 \section{Capa 3: Motor de Evaluación}
 
 % [Descripción del EvaluationEngine, tipos de target implementados,
 % condiciones any/all, evaluadores de Capa 3]
+
+Los tipos de target implementados en el estado actual del sistema son:
+
+\begin{description}
+    \item[\texttt{file\_created}, \texttt{file\_modified}, \texttt{file\_exists}] 
+    Operan sobre eventos del monitor de filesystem. Permiten detectar 
+    creación o modificación de archivos en rutas absolutas o mediante 
+    patrones glob.
+    
+    \item[\texttt{process\_running}] Opera sobre eventos del monitor de 
+    procesos. Detecta procesos activos por effective UID y substring 
+    en el comando.
+    
+    \item[\texttt{log\_pattern}] Opera sobre eventos del monitor de logs. 
+    Aplica un diccionario de campo→regex sobre los campos de la entrada 
+    de log parseada como JSON.
+    
+    \item[\texttt{network\_payload}] Opera sobre eventos \texttt{network\_payload} 
+    del \texttt{NetworkMonitor}. Aplica un diccionario de campo→regex 
+    sobre el campo \texttt{data} del evento, que contiene el texto 
+    ASCII imprimible extraído del payload del paquete. El matching se 
+    realiza con \texttt{re.IGNORECASE}, de modo que el educador no 
+    necesita contemplar variaciones de capitalización en los patrones.
+    
+    \item[\texttt{network\_connection}] Opera sobre eventos 
+    \texttt{network\_connection} del \texttt{NetworkMonitor}. Detecta 
+    conexiones TCP establecidas (paquete SYN-ACK) hacia un puerto de 
+    destino específico, con filtro opcional por IP de destino.
+    
+    \item[\texttt{and}, \texttt{or}, \texttt{not}] Nodos lógicos 
+    recursivos que permiten componer condiciones complejas sobre 
+    cualquier combinación de targets atómicos. El campo 
+    \texttt{condition: any|all} del escenario actúa como azúcar 
+    sintáctica para listas planas de targets sin nodos lógicos.
+\end{description}
+
+Los tipos \texttt{http\_response\_contains} y 
+\texttt{database\_query\_result} están definidos en el schema Pydantic 
+pero no tienen evaluador implementado. Quedan documentados como trabajo 
+futuro; el segundo en particular fue reemplazado funcionalmente por 
+\texttt{network\_payload} con filtro \texttt{capture\_filter: "port 3306"}, 
+que captura las queries directamente del tráfico TCP sin requerir acceso 
+a la base de datos.
 
 \section{Capa 4: Administración}
 
