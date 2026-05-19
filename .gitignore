@@ -11,5 +11,6 @@
 *.synctex.gz
 *.fdb_latexmk
 *.fls
-*.pdf
 memoria_latex.zip
+.DS_Store
+main-diff*.tex
