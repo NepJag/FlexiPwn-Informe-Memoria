@@ -6,11 +6,144 @@ implementación de FlexiPwn, organizadas según las capas de la arquitectura.
 
 \section{Stack Tecnológico}
 
-% [Pegar aquí el texto del documento stack-tecnologico-flexipwn.pdf
-% que ya tienes generado. Incluye: lenguaje Python 3.12, uv,
-% decisión por cada capa, tabla resumen al final]
+Las decisiones de \textit{stack} tecnológico de FlexiPwn fueron
+tomadas en base a un contexto particular: el sistema debe ser
+autohospedable en hardware de recursos limitados, y
+suficientemente simple para que un educador no tenga que invertir demasiado tiempo configurando la infraestructura del sistema, para pueda operar y extender los escenarios de forma rápida. Esta sección describe los componentes seleccionados, organizados según las
+cuatro capas de la arquitectura. La justificación profunda de la
+tecnología de virtualización se desarrolla por separado en la
+Sección~\ref{sec:virtualizacion}.
+
+\subsection{Lenguaje y gestión de dependencias}
+
+Python 3.12 es el lenguaje principal. La elección se
+sostiene en que es el lenguaje que más se domina y que coincide con tener un gran ecosistema de herramientas de infraestructura y orquestación, y de los lenguajes más utilizados en ciberseguridad \cite{hackthebox-cybersecurity-languages}.
+
+La gestión de dependencias y entornos virtuales se realiza con
+\texttt{uv} \cite{astral-uv}, que reemplaza la combinación tradicional de
+\texttt{pip} y \texttt{venv} que agiliza y unifica instalación, sincronización y ejecución de scripts en una sola herramienta.
+
+\subsection{Capa 1: virtualización de entornos}
+
+Los entornos vulnerables y atacantes se ejecutan como contenedores
+Docker en modo \textit{rootless}, gestionados desde Python con el SDK
+oficial \texttt{docker-py}. Se dicidió utilizar el modo \textit{rootless} para minimizar la superficie de ataque del sistema: al no requerir privilegios de root ni un \textit{daemon} centralizado, se reduce el riesgo de que una vulnerabilidad en el sistema de virtualización comprometa la máquina anfitriona. Esta decisión es un pilar de la
+seguridad central del proyecto y se justifica en detalle en la
+Sección~\ref{sec:virtualizacion}. Toda la interacción con Docker se
+encapsula tras la interfaz abstracta \texttt{EnvironmentProvider}
+(ver capítulo \ref{sec:diseño}), de modo que el resto del sistema no depende de la
+tecnología de virtualización concreta.
+
+\subsection{Capa 2: monitoreo pasivo}
+
+La Capa 2 no usa librerías de monitoreo externas: observa el estado de
+los contenedores exclusivamente a través del SDK de Docker y de lectura
+de archivos en el host. El monitor de \textbf{filesystem} usa
+\texttt{container.diff()}; el de \textbf{procesos}, \texttt{container.top()};
+el de \textbf{logs} lee directamente los archivos que el contenedor
+escribe en \textit{bind mounts}; y el de \textbf{red} parsea la salida de
+un contenedor \textit{sidecar} basado en la imagen
+\texttt{nicolaka/netshoot} que ejecuta \texttt{tcpdump}. Esta
+implementación se describe en detalle más adelante en este capítulo.
+
+\subsection{Capa 3: motor de evaluación}
+
+Los escenarios se describen en archivos YAML parseados con
+\texttt{PyYAML} y validados con \texttt{Pydantic v2}. La separación entre
+\textit{parsing} (PyYAML) y validación (Pydantic) es intencional: los
+errores de configuración se detectan con mensajes claros al cargar el
+escenario, no durante la ejecución. Pydantic v2 fue elegido por su
+integración nativa con SQLModel y por el rendimiento de su núcleo en
+Rust.
+
+El motor de evaluación de condiciones de éxito es código Python propio,
+sin dependencias externas. Los \textit{frameworks} de reglas orientados
+a detección en producción (como Sigma o Yara) tienen una expresividad
+que excede los requerimientos de FlexiPwn y una curva de aprendizaje que
+complicaría la creación de escenarios. El motor implementa los tipos de
+target atómicos y los nodos lógicos \texttt{and}/\texttt{or}/\texttt{not}
+descritos en el capítulo \ref{sec:diseño}, y es completamente independiente de
+la infraestructura de contenedores: sus pruebas corren en memoria, sin
+necesidad de Docker.
+
+\subsection{Capa 4: administración}
+
+La interfaz para educadores y estudiantes es una CLI construida con
+\texttt{Typer}, que genera comandos, subcomandos, validación de
+argumentos y páginas de ayuda a partir de las anotaciones de tipo de
+Python. \texttt{Rich} complementa a Typer con el \textit{output} visual:
+tablas de escenarios, paneles de progreso e indicadores de estado.
+Sobre esta base, la administración opera como un \textit{daemon} con un
+REPL interactivo construido con \texttt{prompt\_toolkit}, que permite al
+educador operar el sistema en \textit{foreground} o conectarse a un
+\textit{daemon} en segundo plano; este componente se detalla en la
+sección~\ref{sec:capa4impl}.
+
+El estado del sistema (escenarios, participantes, \textit{runs} y
+resultados) se persiste en SQLite a través de \texttt{SQLModel}, que
+combina SQLAlchemy como motor de base de datos con Pydantic v2 como
+sistema de validación, permitiendo definir los modelos una sola vez.
+SQLite es apropiado para la escala de FlexiPwn (decenas a centenares de
+participantes) y reduce el despliegue a un único directorio con la
+plataforma y el archivo \texttt{.db}. Las contraseñas de los
+participantes se almacenan como \textit{hash} \texttt{bcrypt}.
+
+\subsection{Testing}
+
+El \textit{framework} de pruebas es \texttt{pytest}, con
+\texttt{pytest-mock} para los dobles de prueba. Los tests del motor de
+evaluación y de los \textit{schemas} corren en memoria, sin Docker, lo
+que mantiene un ciclo de desarrollo ágil. Los tests de integración que
+requieren contenedores reales se marcan con \texttt{pytest.mark.integration}
+para ejecutarlos de forma opcional cuando el entorno tiene Docker
+disponible.
+
+\subsection{Resumen del stack}
+
+La Tabla~\ref{tab:stack} consolida los componentes con su versión
+mínima de referencia (según \texttt{pyproject.toml}), el rol que cumplen
+y la capa a la que pertenecen.
+
+\begin{table}[h]
+\centering
+\caption{Componentes del \textit{stack} tecnológico de FlexiPwn.}
+\label{tab:stack}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Componente} & \textbf{Rol en FlexiPwn} & \textbf{Capa} \\
+\hline
+Python $\geq$3.12 & Lenguaje principal & Transversal \\
+uv & Gestor de dependencias y entornos & Transversal \\
+docker $\geq$7.0 & SDK Python para el ciclo de vida de contenedores & Capa 1 \\
+pyyaml $\geq$6.0 & \textit{Parsing} de los YAML de escenarios & Capa 3 \\
+pydantic $\geq$2.0 & Validación del \textit{schema} de escenarios & Capa 3 \\
+typer $\geq$0.15 & \textit{Framework} de la CLI & Capa 4 \\
+rich $\geq$13.0 & Tablas, paneles y \textit{output} con color & Capa 4 \\
+prompt\_toolkit $\geq$3.0 & REPL interactivo del \textit{daemon} & Capa 4 \\
+sqlmodel $\geq$0.0.14 & ORM sobre SQLite (persistencia) & Capa 4 \\
+bcrypt $\geq$4.0 & \textit{Hash} de contraseñas de participantes & Capa 4 \\
+pytest $\geq$8.0 & \textit{Testing} (con pytest-mock) & Transversal \\
+\hline
+\end{tabular}
+\end{table}
+
+El monitoreo de la Capa 2 no aparece en la tabla como dependencia
+externa porque se implementa enteramente sobre el SDK de Docker
+(\texttt{container.diff()}, \texttt{container.top()}) y lectura de
+archivos, sin librerías de observación adicionales.
+
+\subsection{Consideraciones de evolución}
+
+Dos decisiones del \textit{stack} están marcadas para revisión futura.
+La primera es migrar el \texttt{EnvironmentProvider} de Docker
+\textit{rootless} a \textbf{Podman rootless}, que al ser
+\textit{daemonless} elimina el \textit{daemon} centralizado como
+superficie de ataque, y que se podría lograr gracias a que la interfaz abstracta hace que este cambio no
+afecte a las capas superiores. La segunda es complementar la CLI con una
+\textbf{interfaz web} para facilitar la administración del sistema y poder exponer de forma más visual el progreso de los estudiantes.
 
 \section{Decisión de Tecnología de Virtualización}
+\label{sec:virtualizacion}
 
 % [Pegar aquí el texto del documento virt-decision-flexipwn.pdf,
 % incluyendo la tabla comparativa y la justificación de Docker rootless]
@@ -128,9 +261,9 @@ ciclo.
 Los tipos de target implementados en el estado actual del sistema son:
 
 \begin{description}
-    \item[\texttt{file\_created}, \texttt{file\_modified}, \texttt{file\_exists}] 
-    Operan sobre eventos del monitor de filesystem. Permiten detectar 
-    creación o modificación de archivos en rutas absolutas o mediante 
+    \item[\texttt{file\_created}, \texttt{file\_modified}]
+    Operan sobre eventos del monitor de filesystem. Permiten detectar
+    creación o modificación de archivos en rutas absolutas o mediante
     patrones glob.
     
     \item[\texttt{process\_running}] Opera sobre eventos del monitor de 
@@ -160,15 +293,14 @@ Los tipos de target implementados en el estado actual del sistema son:
     sintáctica para listas planas de targets sin nodos lógicos.
 \end{description}
 
-Los tipos \texttt{http\_response\_contains} y 
-\texttt{database\_query\_result} están definidos en el schema Pydantic 
-pero no tienen evaluador implementado. Quedan documentados como trabajo 
-futuro; el segundo en particular fue reemplazado funcionalmente por 
-\texttt{network\_payload} con filtro \texttt{capture\_filter: "port 3306"}, 
-que captura las queries directamente del tráfico TCP sin requerir acceso 
-a la base de datos.
+La inspección de consultas SQL no requiere un evaluador con acceso a la
+base de datos: se realiza sobre el tráfico de red mediante
+\texttt{network\_payload} con un filtro \texttt{capture\_filter: "port 3306"},
+que captura las consultas directamente del tráfico TCP entre la aplicación
+y el motor de base de datos, preservando la pasividad del monitoreo.
 
 \section{Capa 4: Administración}
+\label{sec:capa4impl}
 
 % [Descripción de la CLI con Typer + Rich, comando demo privesc,
 % MonitorOrchestrator como punto de integración]
