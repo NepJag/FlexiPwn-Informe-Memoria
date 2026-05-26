@@ -1,108 +1,109 @@
 \chapter{Implementación}
 \label{sec:implementacion}
 
-Este capítulo describe las decisiones técnicas tomadas durante la
-implementación de FlexiPwn, organizadas según las capas de la arquitectura.
+Este capítulo describe las decisiones técnicas tomadas durante la implementación
+de FlexiPwn, organizadas según las capas de la arquitectura.
 
 \section{Stack Tecnológico}
 
-Las decisiones de \textit{stack} tecnológico de FlexiPwn fueron
-tomadas en base a un contexto particular: el sistema debe ser
-autohospedable en hardware de recursos limitados, y
-suficientemente simple para que un educador no tenga que invertir demasiado tiempo configurando la infraestructura del sistema, para pueda operar y extender los escenarios de forma rápida. Esta sección describe los componentes seleccionados, organizados según las
-cuatro capas de la arquitectura. La justificación profunda de la
-tecnología de virtualización se desarrolla por separado en la
-Sección~\ref{sec:virtualizacion}.
+Las decisiones de \textit{stack} tecnológico de FlexiPwn fueron tomadas en base
+a un contexto particular: el sistema debe ser autohospedable en hardware de
+recursos limitados, y suficientemente simple para que un educador no tenga que
+invertir demasiado tiempo configurando la infraestructura del sistema, para
+pueda operar y extender los escenarios de forma rápida. Esta sección describe
+los componentes seleccionados, organizados según las cuatro capas de la
+arquitectura. La justificación profunda de la tecnología de virtualización se
+desarrolla por separado en la Sección~\ref{sec:virtualizacion}.
 
 \subsection{Lenguaje y gestión de dependencias}
 
-Python 3.12 es el lenguaje principal. La elección se
-sostiene en que es el lenguaje que más se domina y que coincide con tener un gran ecosistema de herramientas de infraestructura y orquestación, y de los lenguajes más utilizados en ciberseguridad \cite{hackthebox-cybersecurity-languages}.
+Python 3.12 es el lenguaje principal. La elección se sostiene en que es el
+lenguaje que más se domina y que coincide con tener un gran ecosistema de
+herramientas de infraestructura y orquestación, y de los lenguajes más
+utilizados en ciberseguridad \cite{hackthebox-cybersecurity-languages}.
 
-La gestión de dependencias y entornos virtuales se realiza con
-\texttt{uv} \cite{astral-uv}, que reemplaza la combinación tradicional de
-\texttt{pip} y \texttt{venv} que agiliza y unifica instalación, sincronización y ejecución de scripts en una sola herramienta.
+La gestión de dependencias y entornos virtuales se realiza con \texttt{uv}
+\cite{astral-uv}, que reemplaza la combinación tradicional de \texttt{pip} y
+\texttt{venv} que agiliza y unifica instalación, sincronización y ejecución de
+scripts en una sola herramienta.
 
 \subsection{Capa 1: virtualización de entornos}
 
-Los entornos vulnerables y atacantes se ejecutan como contenedores
-Docker en modo \textit{rootless}, gestionados desde Python con el SDK
-oficial \texttt{docker-py}. Se dicidió utilizar el modo \textit{rootless} para minimizar la superficie de ataque del sistema: al no requerir privilegios de root ni un \textit{daemon} centralizado, se reduce el riesgo de que una vulnerabilidad en el sistema de virtualización comprometa la máquina anfitriona. Esta decisión es un pilar de la
-seguridad central del proyecto y se justifica en detalle en la
-Sección~\ref{sec:virtualizacion}. Toda la interacción con Docker se
-encapsula tras la interfaz abstracta \texttt{EnvironmentProvider}
-(ver capítulo \ref{sec:diseño}), de modo que el resto del sistema no depende de la
-tecnología de virtualización concreta.
+Los entornos vulnerables y atacantes se ejecutan como contenedores Docker en
+modo \textit{rootless}, gestionados desde Python con el SDK oficial
+\texttt{docker-py}. Se decidió utilizar el modo \textit{rootless} para minimizar
+la superficie de ataque del sistema: al no requerir privilegios de root ni un
+\textit{daemon} centralizado, se reduce el riesgo de que una vulnerabilidad en
+el sistema de virtualización comprometa la máquina anfitriona. Esta decisión es
+un pilar de la seguridad central del proyecto y se justifica en detalle en la
+Sección~\ref{sec:virtualizacion}. Toda la interacción con Docker se encapsula
+tras la interfaz abstracta \texttt{EnvironmentProvider} (ver capítulo
+\ref{sec:diseño}), de modo que el resto del sistema no depende de la tecnología
+de virtualización concreta.
 
 \subsection{Capa 2: monitoreo pasivo}
 
-La Capa 2 no usa librerías de monitoreo externas: observa el estado de
-los contenedores exclusivamente a través del SDK de Docker y de lectura
-de archivos en el host. El monitor de \textbf{filesystem} usa
-\texttt{container.diff()}; el de \textbf{procesos}, \texttt{container.top()};
-el de \textbf{logs} lee directamente los archivos que el contenedor
-escribe en \textit{bind mounts}; y el de \textbf{red} parsea la salida de
-un contenedor \textit{sidecar} basado en la imagen
-\texttt{nicolaka/netshoot} que ejecuta \texttt{tcpdump}. Esta
+La Capa 2 no usa librerías de monitoreo externas: observa el estado de los
+contenedores exclusivamente a través del SDK de Docker y de lectura de archivos
+en el host. El monitor de \textbf{filesystem} usa \texttt{container.diff()}; el
+de \textbf{procesos}, \texttt{container.top()}; el de \textbf{logs} lee
+directamente los archivos que el contenedor escribe en \textit{bind mounts}; y
+el de \textbf{red} parsea la salida de un contenedor \textit{sidecar} basado en
+la imagen \texttt{nicolaka/netshoot} que ejecuta \texttt{tcpdump}. Esta
 implementación se describe en detalle más adelante en este capítulo.
 
 \subsection{Capa 3: motor de evaluación}
 
-Los escenarios se describen en archivos YAML parseados con
-\texttt{PyYAML} y validados con \texttt{Pydantic v2}. La separación entre
-\textit{parsing} (PyYAML) y validación (Pydantic) es intencional: los
-errores de configuración se detectan con mensajes claros al cargar el
-escenario, no durante la ejecución. Pydantic v2 fue elegido por su
-integración nativa con SQLModel y por el rendimiento de su núcleo en
-Rust.
+Los escenarios se describen en archivos YAML parseados con \texttt{PyYAML} y
+validados con \texttt{Pydantic v2}. La separación entre \textit{parsing}
+(PyYAML) y validación (Pydantic) es intencional: los errores de configuración se
+detectan con mensajes claros al cargar el escenario, no durante la ejecución.
+Pydantic v2 fue elegido por su integración nativa con SQLModel y por el
+rendimiento de su núcleo en Rust.
 
-El motor de evaluación de condiciones de éxito es código Python propio,
-sin dependencias externas. Los \textit{frameworks} de reglas orientados
-a detección en producción (como Sigma o Yara) tienen una expresividad
-que excede los requerimientos de FlexiPwn y una curva de aprendizaje que
-complicaría la creación de escenarios. El motor implementa los tipos de
-target atómicos y los nodos lógicos \texttt{and}/\texttt{or}/\texttt{not}
-descritos en el capítulo \ref{sec:diseño}, y es completamente independiente de
-la infraestructura de contenedores: sus pruebas corren en memoria, sin
-necesidad de Docker.
+El motor de evaluación de condiciones de éxito es código Python propio, sin
+dependencias externas. Los \textit{frameworks} de reglas orientados a detección
+en producción (como Sigma o Yara) tienen una expresividad que excede los
+requerimientos de FlexiPwn y una curva de aprendizaje que complicaría la
+creación de escenarios. El motor implementa los tipos de target atómicos y los
+nodos lógicos \texttt{and}/\texttt{or}/\texttt{not} descritos en el capítulo
+\ref{sec:diseño}, y es completamente independiente de la infraestructura de
+contenedores: sus pruebas corren en memoria, sin necesidad de Docker.
 
 \subsection{Capa 4: administración}
 
 La interfaz para educadores y estudiantes es una CLI construida con
-\texttt{Typer}, que genera comandos, subcomandos, validación de
-argumentos y páginas de ayuda a partir de las anotaciones de tipo de
-Python. \texttt{Rich} complementa a Typer con el \textit{output} visual:
-tablas de escenarios, paneles de progreso e indicadores de estado.
-Sobre esta base, la administración opera como un \textit{daemon} con un
-REPL interactivo construido con \texttt{prompt\_toolkit}, que permite al
-educador operar el sistema en \textit{foreground} o conectarse a un
-\textit{daemon} en segundo plano; este componente se detalla en la
-sección~\ref{sec:capa4impl}.
+\texttt{Typer}, que genera comandos, subcomandos, validación de argumentos y
+páginas de ayuda a partir de las anotaciones de tipo de Python. \texttt{Rich}
+complementa a Typer con el \textit{output} visual: tablas de escenarios, paneles
+de progreso e indicadores de estado. Sobre esta base, la administración opera
+como un \textit{daemon} con un REPL interactivo construido con
+\texttt{prompt\_toolkit}, que permite al educador operar el sistema en
+\textit{foreground} o conectarse a un \textit{daemon} en segundo plano; este
+componente se detalla en la sección~\ref{sec:capa4impl}.
 
-El estado del sistema (escenarios, participantes, \textit{runs} y
-resultados) se persiste en SQLite a través de \texttt{SQLModel}, que
-combina SQLAlchemy como motor de base de datos con Pydantic v2 como
-sistema de validación, permitiendo definir los modelos una sola vez.
-SQLite es apropiado para la escala de FlexiPwn (decenas a centenares de
-participantes) y reduce el despliegue a un único directorio con la
-plataforma y el archivo \texttt{.db}. Las contraseñas de los
+El estado del sistema (escenarios, participantes, \textit{runs} y resultados) se
+persiste en SQLite a través de \texttt{SQLModel}, que combina SQLAlchemy como
+motor de base de datos con Pydantic v2 como sistema de validación, permitiendo
+definir los modelos una sola vez. SQLite es apropiado para la escala de FlexiPwn
+(decenas a centenares de participantes) y reduce el despliegue a un único
+directorio con la plataforma y el archivo \texttt{.db}. Las contraseñas de los
 participantes se almacenan como \textit{hash} \texttt{bcrypt}.
 
 \subsection{Testing}
 
-El \textit{framework} de pruebas es \texttt{pytest}, con
-\texttt{pytest-mock} para los dobles de prueba. Los tests del motor de
-evaluación y de los \textit{schemas} corren en memoria, sin Docker, lo
-que mantiene un ciclo de desarrollo ágil. Los tests de integración que
-requieren contenedores reales se marcan con \texttt{pytest.mark.integration}
-para ejecutarlos de forma opcional cuando el entorno tiene Docker
-disponible.
+El \textit{framework} de pruebas es \texttt{pytest}, con \texttt{pytest-mock}
+para los dobles de prueba. Los tests del motor de evaluación y de los
+\textit{schemas} corren en memoria, sin Docker, lo que mantiene un ciclo de
+desarrollo ágil. Los tests de integración que requieren contenedores reales se
+marcan con \texttt{pytest.mark.integration} para ejecutarlos de forma opcional
+cuando el entorno tiene Docker disponible.
 
 \subsection{Resumen del stack}
 
-La Tabla~\ref{tab:stack} consolida los componentes con su versión
-mínima de referencia (según \texttt{pyproject.toml}), el rol que cumplen
-y la capa a la que pertenecen.
+La Tabla~\ref{tab:stack} consolida los componentes con su versión mínima de
+referencia (según \texttt{pyproject.toml}), el rol que cumplen y la capa a la
+que pertenecen.
 
 \begin{table}[h]
 \centering
@@ -127,26 +128,154 @@ pytest $\geq$8.0 & \textit{Testing} (con pytest-mock) & Transversal \\
 \end{tabular}
 \end{table}
 
-El monitoreo de la Capa 2 no aparece en la tabla como dependencia
-externa porque se implementa enteramente sobre el SDK de Docker
-(\texttt{container.diff()}, \texttt{container.top()}) y lectura de
-archivos, sin librerías de observación adicionales.
+El monitoreo de la Capa 2 no aparece en la tabla como dependencia externa porque
+se implementa enteramente sobre el SDK de Docker (\texttt{container.diff()},
+\texttt{container.top()}) y lectura de archivos, sin librerías de observación
+adicionales.
 
 \subsection{Consideraciones de evolución}
 
-Dos decisiones del \textit{stack} están marcadas para revisión futura.
-La primera es migrar el \texttt{EnvironmentProvider} de Docker
-\textit{rootless} a \textbf{Podman rootless}, que al ser
-\textit{daemonless} elimina el \textit{daemon} centralizado como
-superficie de ataque, y que se podría lograr gracias a que la interfaz abstracta hace que este cambio no
-afecte a las capas superiores. La segunda es complementar la CLI con una
-\textbf{interfaz web} para facilitar la administración del sistema y poder exponer de forma más visual el progreso de los estudiantes.
+Dos decisiones del \textit{stack} están marcadas para revisión futura. La
+primera es migrar el \texttt{EnvironmentProvider} de Docker \textit{rootless} a
+\textbf{Podman rootless}, que al ser \textit{daemonless} elimina el
+\textit{daemon} centralizado como superficie de ataque, y que se podría lograr
+gracias a que la interfaz abstracta hace que este cambio no afecte a las capas
+superiores. La segunda es complementar la CLI con una \textbf{interfaz web} para
+facilitar la administración del sistema y poder exponer de forma más visual el
+progreso de los estudiantes.
 
 \section{Decisión de Tecnología de Virtualización}
 \label{sec:virtualizacion}
 
-% [Pegar aquí el texto del documento virt-decision-flexipwn.pdf,
-% incluyendo la tabla comparativa y la justificación de Docker rootless]
+FlexiPwn necesita instanciar entornos de práctica vulnerables para múltiples
+estudiantes en paralelo. Cada entorno debe ser aislado, reseteable y
+monitoreable desde Python. La elección de tecnolog ía de virtualización impacta
+directamente en cinco dimensiones que se ponderaron según su importancia para el
+proyecto: seguridad del \textit{host} (30\%), por tratarse de ejercicios con
+exploits activos; rapidez de inicialización (20\%), que define la experiencia
+del estudiante al pedir su entorno; simplicidad de implementación (20\%), que
+afecta la velocidad de desarrollo y la mantenibilidad; monitoreo programático
+(15\%), es decir, la facilidad para inspeccionar, por ejemplo, el
+\textit{filesystem} y los logs desde Python; y portabilidad (15\%), para que el
+sistema funcione tanto en equipos educativos como en los servidores del
+laboratorio CLCERT.
+
+Se evaluaron cuatro alternativas: Docker \textit{rootful}, Docker
+\textit{rootless}, Podman \textit{rootless} y KVM/libvirt (máquinas virtuales
+completas). Se excluyeron gVisor y Kata Containers del análisis principal
+porque, si bien son opciones válidas, añaden una complejidad operativa que
+escapa el alcance educativo del proyecto en su fase actual.
+
+\subsection{Alternativas evaluadas}
+
+\textbf{Docker \textit{rootful}} es la configuración por defecto de Docker
+Engine: un \textit{daemon} con privilegios de root en el \textit{host}. Su SDK
+para Python (\texttt{docker-py}) es maduro y muy documentado, pero su modelo de
+seguridad es inadecuado para ejercicios de ataque. Tectonic, la plataforma de
+\textit{cyber range}, advierte explícitamente que en modo privilegiado un
+usuario que obtenga root dentro de un contenedor puede obtener root en el
+\textit{host} \cite{tectonic}. Este riesgo no es teórico: las vulnerabilidades
+CVE-2025-31133, CVE-2025-52565 y CVE-2025-52881 en \texttt{runc} (noviembre de
+2025) permiten escape de contenedor y root en el \textit{host} mediante
+manipulación de \textit{symlinks}, y el patrón se repite históricamente
+\cite{cve-runc-2025}.
+
+\textbf{Docker \textit{rootless}} ejecuta tanto el \textit{daemon} como los
+contenedores dentro de un \textit{user namespace}. Si un atacante escapa del
+contenedor, solo obtiene los permisos del usuario de \textit{host} que ejecuta
+el \textit{daemon}, nunca root \cite{docker-rootless}. El SDK de Python es
+idéntico al de \textit{rootful}.
+
+\textbf{Podman \textit{rootless}} tiene una arquitectura \textit{daemonless}:
+cada comando crea un proceso hijo sin un \textit{daemon} central con
+privilegios, lo que elimina la superficie de ataque que representa un
+\textit{daemon} compartido. Es \textit{rootless} por diseño desde su origen y
+expone una API compatible con la de Docker, utilizable mediante
+\texttt{docker-py} o el cliente nativo \texttt{podman-py} \cite{podman-py,
+podman-vs-docker}.
+
+\textbf{KVM/libvirt} ofrece el mayor aislamiento posible, un kernel separado por
+máquina virtual, pero con un costo prohibitivo para el caso de uso: tanto el
+arranque de cada instancia como su consumo de memoria son significativamente
+mayores que los de un contenedor \cite{felter-vm-containers}, y la operación a
+escala suele requerir herramientas como Terraform, Packer y Ansible.
+
+\subsection{Comparación ponderada}
+
+La Tabla~\ref{tab:virt-scoring} resume el puntaje de cada alternativa en una
+escala de 1 a 5 por criterio, multiplicado por el peso respectivo. Los valores
+son cualitativos transformados a escala ordinal: representan la posición
+relativa de cada opción en el contexto específico de FlexiPwn (educación, escala
+pequeña a mediana, monorepo Python, despliegue autohospedable), no mediciones de
+\textit{benchmark}.
+
+\begin{table}[h]
+\centering
+\caption{Comparación ponderada de tecnologías de virtualización.}
+\label{tab:virt-scoring}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Criterio (peso)} & \textbf{D. rootful} & \textbf{D. rootless} &
+\textbf{Podman} & \textbf{KVM} \\
+\hline
+Seguridad (30\%)       & 1 / 0.30 & 4 / 1.20 & 5 / 1.50 & 5 / 1.50 \\
+Startup (20\%)         & 5 / 1.00 & 4 / 0.80 & 4 / 0.80 & 2 / 0.40 \\
+Simplicidad (20\%)     & 5 / 1.00 & 4 / 0.80 & 4 / 0.80 & 2 / 0.40 \\
+Monitoreo (15\%)       & 5 / 0.75 & 5 / 0.75 & 5 / 0.75 & 3 / 0.45 \\
+Portabilidad (15\%)    & 5 / 0.75 & 4 / 0.60 & 4 / 0.60 & 2 / 0.30 \\
+\hline
+\textbf{Total}         & \textbf{3.80} & \textbf{4.15} & \textbf{4.45} & \textbf{3.05} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Decisión: Docker \textit{rootless} con interfaz abstracta}
+
+FlexiPwn utiliza Docker \textit{rootless} como tecnología de virtualización
+principal, expuesto a través de la interfaz abstracta
+\texttt{EnvironmentProvider} descrita en el Capítulo~\ref{sec:diseño}. La
+decisión se apoya en los tres criterios de mayor peso. En \textbf{seguridad}, el
+modo \textit{rootless} elimina el vector de escape hacia root en el
+\textit{host}, que es el riesgo más crítico en una plataforma con ejercicios de
+\textit{privilege escalation}; KVM ofrecería un aislamiento mayor, pero la
+diferencia es marginal en un entorno educativo controlado donde los
+participantes son estudiantes y no atacantes externos adversariales. En
+\textbf{rapidez de inicialización}, los contenedores arrancan en menos de un
+segundo con la imagen precargada, frente a los 5 a 30 segundos de una VM,
+diferencia decisiva cuando 30 o más estudiantes crean sus entornos al inicio de
+una clase. En \textbf{simplicidad}, \texttt{docker-py} es la API de orquestación
+de contenedores más madura y documentada disponible, lo que acelera el
+desarrollo dentro de los plazos del proyecto.
+
+Hay que notar que Podman \textit{rootless} obtuvo el puntaje ponderado más alto
+(4.45 frente a 4.15) y es arquitectónicamente más sólido al ser
+\textit{daemonless}. La razón para no elegirlo como \textit{backend} principal
+es pragmática: \texttt{podman-py} es funcional pero aún en desarrollo activo,
+con diferencias sutiles respecto a \texttt{docker-py} en operaciones de
+\textit{streaming} de logs y \textit{stats}, y la documentación y comunidad de
+\texttt{docker-py} es considerablemente mayor. En términos prácticos, ambas
+alternativas ofrecen garantías de seguridad equivalentes para los ejercicios de
+FlexiPwn. La diferencia arquitectónica es significativa en producción a gran
+escala, pero marginal para una instalación educativa de algunas decenas de
+usuarios concurrentes. La interfaz abstracta permite incorporar Podman como
+\textit{backend} alternativo en una iteración futura sin modificar las capas
+superiores.
+
+\subsection{Trabajo futuro en aislamiento}
+
+Existen tres líneas de evolución posibles, donde las últimas dos apuntan a
+vulnerabilidades más sofisticadas. La primera es implementar un
+\texttt{PodmanProvider}, mejora natural en seguridad arquitectónica por su base
+\textit{rootless}. La segunda es usar gVisor (\texttt{runsc}) como
+\textit{runtime} alternativo para ejercicios con vulnerabilidades más delicadas:
+añade un kernel en espacio de usuario que intercepta \textit{syscalls} con un
+\textit{overhead} mucho menor que una VM, aunque implementa solo una parte de
+las \textit{syscalls} de Linux, lo que puede causar incompatibilidades con
+ciertos exploits. La tercera es Kata Containers para ejercicios de
+\textit{kernel exploitation}, donde Docker \textit{rootless} no basta porque el
+kernel del \textit{host} sigue siendo compartido. Kata ejecuta los
+\textit{workloads} en una VM ligera con su propio kernel, resolviendo ese límite
+a cambio de un arranque algo mayor \cite{northflank-isolation}.
 
 \section{Capa 1: Orquestador de Contenedores}
 
@@ -162,96 +291,91 @@ afecte a las capas superiores. La segunda es complementar la CLI con una
 \subsection{Limitaciones del Monitoreo por Polling}
 
 El monitor de procesos consulta \texttt{container.top()} cada dos segundos.
-Procesos que nacen y terminan dentro de ese intervalo son invisibles para
-el sistema. Los vectores no detectables en el estado actual incluyen:
-procesos efímeros con duración menor a dos segundos, técnicas de
-\textit{PPID spoofing}, y ataques \textit{fileless} mediante llamadas al
-sistema como \texttt{ptrace} o \texttt{memfd\_create}. Para el alcance
-educativo del proyecto, este nivel de detección es aceptable dado que los
-ejercicios no requieren detectar procesos sub-segundo ni técnicas de evasión
-avanzadas esperables en un atacante universitario.
+Procesos que nacen y terminan dentro de ese intervalo son invisibles para el
+sistema. Los vectores no detectables en el estado actual incluyen: procesos
+efímeros con duración menor a dos segundos, técnicas de \textit{PPID spoofing},
+y ataques \textit{fileless} mediante llamadas al sistema como \texttt{ptrace} o
+\texttt{memfd\_create}. Para el alcance educativo del proyecto, este nivel de
+detección es aceptable dado que los ejercicios no requieren detectar procesos
+sub-segundo ni técnicas de evasión avanzadas esperables en un atacante
+universitario.
 
-De forma análoga, \texttt{container.diff()} retorna una instantánea del
-estado acumulado del filesystem desde el inicio del contenedor. Para
-distinguir cambios del sistema de inicialización de cambios realizados por
-el estudiante, se captura un \textit{baseline} del \textit{diff} una vez
-que el contenedor está estable. Si la imagen tiene un \texttt{HEALTHCHECK}
-configurado, el sistema espera hasta que el contenedor reporte estado
-\texttt{healthy} antes de capturar el baseline; de lo contrario, espera un
-delay configurable (por defecto 3 segundos) como mecanismo de respaldo.
+De forma análoga, \texttt{container.diff()} retorna una instantánea del estado
+acumulado del filesystem desde el inicio del contenedor. Para distinguir cambios
+del sistema de inicialización de cambios realizados por el estudiante, se
+captura un \textit{baseline} del \textit{diff} una vez que el contenedor está
+estable. Si la imagen tiene un \texttt{HEALTHCHECK} configurado, el sistema
+espera hasta que el contenedor reporte estado \texttt{healthy} antes de capturar
+el baseline; de lo contrario, espera un delay configurable (por defecto 3
+segundos) como mecanismo de respaldo.
 
 \subsection{Monitor de Red}
 \label{sec:capa2}
 
-Para escenarios que requieren observar tráfico de red, la Capa 2 instancia 
-un cuarto monitor: \texttt{NetworkMonitor}. A diferencia de los tres monitores 
-anteriores, este monitor depende de un contenedor sidecar que comparte el 
+Para escenarios que requieren observar tráfico de red, la Capa 2 instancia un
+cuarto monitor: \texttt{NetworkMonitor}. A diferencia de los tres monitores
+anteriores, este monitor depende de un contenedor sidecar que comparte el
 namespace de red del sistema vulnerable.
 
 \subsubsection*{Contenedor sidecar}
 \begin{sloppypar}
-    Al crear el entorno, si el escenario define al menos un target de tipo 
-    \texttt{network\_*}, \texttt{DockerRootlessProvider} lanza un contenedor 
-    adicional basado en la imagen \texttt{nicolaka/netshoot} con la siguiente 
+    Al crear el entorno, si el escenario define al menos un target de tipo
+    \texttt{network\_*}, \texttt{DockerRootlessProvider} lanza un contenedor
+    adicional basado en la imagen \texttt{nicolaka/netshoot} con la siguiente
     configuración:
 \end{sloppypar}
 
 \begin{itemize}
-    \item \textbf{Namespace de red compartido}: mediante 
-    \texttt{--network container:\{vulnerable\}}, el sidecar comparte 
-    exactamente el mismo namespace de red que el vulnerable. Esto hace 
-    visible todo el tráfico del vulnerable desde dentro del sidecar, 
-    incluyendo comunicaciones por la interfaz de loopback 
-    (\texttt{127.0.0.1}), que de otro modo no serían capturables desde 
-    una perspectiva externa.
-    
-    \item \textbf{Comando de captura}: \texttt{tcpdump -i any -A -n -l}, 
-    con un filtro opcional definido en el campo 
-    \texttt{environment.capture\_filter} del YAML del escenario 
-    (por ejemplo, \texttt{port 3306} para restringir la captura 
-    a tráfico MySQL).
-    
-    \item \textbf{Salida en bind mount}: la captura se escribe en un 
-    archivo \texttt{traffic.txt} en un directorio del host con 
-    permisos \texttt{0o700}, al que solo tiene acceso el proceso de 
-    FlexiPwn.
+    \item \textbf{Namespace de red compartido}: mediante \texttt{--network
+    container:\{vulnerable\}}, el sidecar comparte exactamente el mismo
+    namespace de red que el vulnerable. Esto hace visible todo el tráfico del
+    vulnerable desde dentro del sidecar, incluyendo comunicaciones por la
+    interfaz de loopback (\texttt{127.0.0.1}), que de otro modo no serían
+    capturables desde una perspectiva externa.
+
+    \item \textbf{Comando de captura}: \texttt{tcpdump -i any -A -n -l}, con un
+    filtro opcional definido en el campo \texttt{environment.capture\_filter}
+    del YAML del escenario (por ejemplo, \texttt{port 3306} para restringir la
+    captura a tráfico MySQL).
+
+    \item \textbf{Salida en bind mount}: la captura se escribe en un archivo
+    \texttt{traffic.txt} en un directorio del host con permisos \texttt{0o700},
+    al que solo tiene acceso el proceso de FlexiPwn.
 \end{itemize}
 
-El uso de \texttt{-n} desactiva la resolución de nombres, forzando IPs 
-numéricas en el output y evitando que el parser del monitor falle ante 
-hostnames como \texttt{localhost}. El flag \texttt{-l} activa el 
-line-buffering de tcpdump, reduciendo la latencia entre la escritura 
-del paquete y su disponibilidad en el archivo del host.
+El uso de \texttt{-n} desactiva la resolución de nombres, forzando IPs numéricas
+en el output y evitando que el parser del monitor falle ante hostnames como
+\texttt{localhost}. El flag \texttt{-l} activa el line-buffering de tcpdump,
+reduciendo la latencia entre la escritura del paquete y su disponibilidad en el
+archivo del host.
 
 \subsubsection*{Parsing packet-based}
 
-\texttt{NetworkMonitor} lee el archivo \texttt{traffic.txt} de forma 
-incremental en cada ciclo de polling, procesando el output de tcpdump 
-como unidades de paquete completo en lugar de línea por línea. Esta 
-decisión es necesaria porque el output de \texttt{tcpdump -A} en modo 
-\texttt{-i any} mezcla bytes ASCII del payload con bytes binarios de 
-los headers TCP/IP, y el carácter \texttt{0x0a} (LF) puede aparecer 
-dentro de los headers, partiendo artificialmente el payload en múltiples 
-líneas si se procesa con \texttt{splitlines()}.
+\texttt{NetworkMonitor} lee el archivo \texttt{traffic.txt} de forma incremental
+en cada ciclo de polling, procesando el output de tcpdump como unidades de
+paquete completo en lugar de línea por línea. Esta decisión es necesaria porque
+el output de \texttt{tcpdump -A} en modo \texttt{-i any} mezcla bytes ASCII del
+payload con bytes binarios de los headers TCP/IP, y el carácter \texttt{0x0a}
+(LF) puede aparecer dentro de los headers, partiendo artificialmente el payload
+en múltiples líneas si se procesa con \texttt{splitlines()}.
 
-El monitor detecta las cabeceras de paquete mediante una expresión regular 
-que acepta el formato de \texttt{-i any} (que incluye el nombre de interfaz 
-y dirección entre el timestamp y la IP) y extrae de ellas las IPs y 
-puertos de origen y destino. Las líneas entre cabeceras se acumulan en un 
-buffer de payload. Cuando se detecta una nueva cabecera, el buffer del 
-paquete anterior se procesa: se extrae todo el texto en rango ASCII 
-imprimible (\texttt{0x20--0x7e}), y si el resultado supera los cuatro 
-caracteres se emite un \texttt{MonitorEvent} de tipo \texttt{network\_payload} 
-con el texto extraído y los metadatos del paquete. Adicionalmente, si la 
-cabecera contiene \texttt{Flags [S.]}, se emite un evento 
-\texttt{network\_connection} con la IP y puerto de destino.
+El monitor detecta las cabeceras de paquete mediante una expresión regular que
+acepta el formato de \texttt{-i any} (que incluye el nombre de interfaz y
+dirección entre el timestamp y la IP) y extrae de ellas las IPs y puertos de
+origen y destino. Las líneas entre cabeceras se acumulan en un buffer de
+payload. Cuando se detecta una nueva cabecera, el buffer del paquete anterior se
+procesa: se extrae todo el texto en rango ASCII imprimible
+(\texttt{0x20--0x7e}), y si el resultado supera los cuatro caracteres se emite
+un \texttt{MonitorEvent} de tipo \texttt{network\_payload} con el texto extraído
+y los metadatos del paquete. Adicionalmente, si la cabecera contiene
+\texttt{Flags [S.]}, se emite un evento \texttt{network\_connection} con la IP y
+puerto de destino.
 
-Una implicación importante del modelo packet-based es que el último 
-paquete de una ráfaga de tráfico corta podría quedar atrapado en el 
-buffer si no llega una cabecera posterior que dispare su procesamiento. 
-Para evitar esto, al final de cada ciclo de polling el monitor procesa 
-el paquete en curso si el buffer no está vacío, sin esperar al siguiente 
-ciclo.
+Una implicación importante del modelo packet-based es que el último paquete de
+una ráfaga de tráfico corta podría quedar atrapado en el buffer si no llega una
+cabecera posterior que dispare su procesamiento. Para evitar esto, al final de
+cada ciclo de polling el monitor procesa el paquete en curso si el buffer no
+está vacío, sin esperar al siguiente ciclo.
 
 \section{Capa 3: Motor de Evaluación}
 
@@ -261,43 +385,41 @@ ciclo.
 Los tipos de target implementados en el estado actual del sistema son:
 
 \begin{description}
-    \item[\texttt{file\_created}, \texttt{file\_modified}]
-    Operan sobre eventos del monitor de filesystem. Permiten detectar
-    creación o modificación de archivos en rutas absolutas o mediante
-    patrones glob.
-    
-    \item[\texttt{process\_running}] Opera sobre eventos del monitor de 
-    procesos. Detecta procesos activos por effective UID y substring 
-    en el comando.
-    
-    \item[\texttt{log\_pattern}] Opera sobre eventos del monitor de logs. 
-    Aplica un diccionario de campo→regex sobre los campos de la entrada 
-    de log parseada como JSON.
-    
-    \item[\texttt{network\_payload}] Opera sobre eventos \texttt{network\_payload} 
-    del \texttt{NetworkMonitor}. Aplica un diccionario de campo→regex 
-    sobre el campo \texttt{data} del evento, que contiene el texto 
-    ASCII imprimible extraído del payload del paquete. El matching se 
-    realiza con \texttt{re.IGNORECASE}, de modo que el educador no 
-    necesita contemplar variaciones de capitalización en los patrones.
-    
-    \item[\texttt{network\_connection}] Opera sobre eventos 
-    \texttt{network\_connection} del \texttt{NetworkMonitor}. Detecta 
-    conexiones TCP establecidas (paquete SYN-ACK) hacia un puerto de 
-    destino específico, con filtro opcional por IP de destino.
-    
-    \item[\texttt{and}, \texttt{or}, \texttt{not}] Nodos lógicos 
-    recursivos que permiten componer condiciones complejas sobre 
-    cualquier combinación de targets atómicos. El campo 
-    \texttt{condition: any|all} del escenario actúa como azúcar 
-    sintáctica para listas planas de targets sin nodos lógicos.
+    \item[\texttt{file\_created}, \texttt{file\_modified}] Operan sobre eventos
+    del monitor de filesystem. Permiten detectar creación o modificación de
+    archivos en rutas absolutas o mediante patrones glob.
+
+    \item[\texttt{process\_running}] Opera sobre eventos del monitor de
+    procesos. Detecta procesos activos por effective UID y substring en el
+    comando.
+
+    \item[\texttt{log\_pattern}] Opera sobre eventos del monitor de logs. Aplica
+    un diccionario de campo→regex sobre los campos de la entrada de log parseada
+    como JSON.
+
+    \item[\texttt{network\_payload}] Opera sobre eventos
+    \texttt{network\_payload} del \texttt{NetworkMonitor}. Aplica un diccionario
+    de campo→regex sobre el campo \texttt{data} del evento, que contiene el
+    texto ASCII imprimible extraído del payload del paquete. El matching se
+    realiza con \texttt{re.IGNORECASE}, de modo que el educador no necesita
+    contemplar variaciones de capitalización en los patrones.
+
+    \item[\texttt{network\_connection}] Opera sobre eventos
+    \texttt{network\_connection} del \texttt{NetworkMonitor}. Detecta conexiones
+    TCP establecidas (paquete SYN-ACK) hacia un puerto de destino específico,
+    con filtro opcional por IP de destino.
+
+    \item[\texttt{and}, \texttt{or}, \texttt{not}] Nodos lógicos recursivos que
+    permiten componer condiciones complejas sobre cualquier combinación de
+    targets atómicos. El campo \texttt{condition: any|all} del escenario actúa
+    como azúcar sintáctica para listas planas de targets sin nodos lógicos.
 \end{description}
 
-La inspección de consultas SQL no requiere un evaluador con acceso a la
-base de datos: se realiza sobre el tráfico de red mediante
-\texttt{network\_payload} con un filtro \texttt{capture\_filter: "port 3306"},
-que captura las consultas directamente del tráfico TCP entre la aplicación
-y el motor de base de datos, preservando la pasividad del monitoreo.
+La inspección de consultas SQL no requiere un evaluador con acceso a la base de
+datos: se realiza sobre el tráfico de red mediante \texttt{network\_payload} con
+un filtro \texttt{capture\_filter: "port 3306"}, que captura las consultas
+directamente del tráfico TCP entre la aplicación y el motor de base de datos,
+preservando la pasividad del monitoreo.
 
 \section{Capa 4: Administración}
 \label{sec:capa4impl}
