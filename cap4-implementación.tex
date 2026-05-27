@@ -279,8 +279,99 @@ a cambio de un arranque algo mayor \cite{northflank-isolation}.
 
 \section{Capa 1: Orquestador de Contenedores}
 
-% [Descripción de DockerRootlessProvider, detección de socket,
-% estrategia de baseline con healthcheck, rollback en create()]
+La Capa 1 está implementada por la clase \texttt{DockerRootlessProvider}, la
+única aplicación concreta de la interfaz abstracta \texttt{EnvironmentProvider}
+hasta el momento introducida en el Capítulo~\ref{sec:diseño}. Este
+\textit{provider} encapsula todas las llamadas al SDK de Docker
+(\texttt{docker-py}) y materializa cada \texttt{Environment} como un conjunto de
+recursos Docker (redes, contenedores y \textit{bind mounts}) con identificación
+y etiquetado uniforme, de modo que las capas superiores puedan operar entornos
+sin conocer detalles del \textit{runtime}. Esta sección describe los aspectos de
+implementación y presenta las justificaciones que la llevaron a su estado
+actual.
+
+\subsection{Detección del socket Docker}
+
+\texttt{DockerRootlessProvider} resuelve la ubicación del socket Docker al
+construirse, sin requerir configuración explícita en la mayoría de los casos. La
+detección sigue tres pasos en orden de prioridad: primero respeta la variable de
+entorno \texttt{DOCKER\_HOST} si está definida, permitiendo que el educador
+apunte a un socket personalizado. De no presentarla, busca
+\texttt{\$XDG\_RUNTIME\_DIR/docker.sock}, que es la ubicación estándar en
+sistemas Linux modernos, y como último recurso intenta
+\texttt{/run/user/\{uid\}/docker.sock}, la ruta por defecto de la instalación
+\textit{rootless} de Docker. Si ninguna existe, se levanta un
+\texttt{SocketNotFoundError} con un mensaje que indica al usuario las rutas que
+se intentaron, evitando errores opacos del SDK.
+
+\subsection{Identificación y etiquetado de recursos}
+\begin{sloppypar}
+Cada entorno recibe un identificador único \texttt{env\_id} de la forma
+\texttt{run-XXXXXXXX} (el prefijo ``run'' y ocho caracteres hexadecimales
+derivados de un UUID), del que se derivan los nombres de otros recursos
+asociados: \texttt{flexipwn-\{env\_id\}-vulnerable} y
+\texttt{flexipwn-\{env\_id\}-attacker} para los contenedores, y
+\texttt{flexipwn-\{env\_id\}} y \texttt{flexipwn-\{env\_id\}-ext} para las redes
+interna y externa. Esta convención permite recuperar cualquier recurso a partir
+del \texttt{env\_id} persistido en la base de datos sin mantener un mapeo
+aparte.
+\end{sloppypar}
+
+Todos los recursos creados por la plataforma se etiquetan con
+\texttt{flexipwn.managed=true} más un conjunto de etiquetas contextuales
+\texttt{flexipwn.env\_id}, \texttt{flexipwn.scenario\_id} y
+\texttt{flexipwn.participant\_id}. Estas etiquetas son la base de la operación
+de limpieza \texttt{cleanup\_all}, que recorre los recursos del \textit{daemon}
+filtrando por la etiqueta principal y elimina cualquier entorno huérfano que
+haya sobrevivido a una caída del proceso administrador, permitiendo recuperar la
+consistencia entre el estado persistido en SQLite y el estado real de Docker sin
+afectar recursos ajenos a FlexiPwn.
+
+\subsection{Creación con \textit{rollback}}
+
+La operación \texttt{create()} levanta cuatro recursos sucesivamente: el
+directorio base de \textit{bind mounts}, las redes interna y externa, el
+contenedor vulnerable, el contenedor atacante y el \textit{sidecar} de captura
+de red. Un fallo a mitad de camino dejaría recursos huérfanos en Docker y
+archivos sin uso en el \textit{host}, lo que con el tiempo contaminaría el
+sistema y dificultaría el diagnóstico de posibles errores.
+
+Para evitarlo, el método mantiene un conjunto de banderas booleanas, una por
+tipo de recurso, que se activan a medida que cada paso completa con éxito.
+Cualquier excepción captura el flujo en un único bloque \texttt{except} que
+invoca \texttt{\_rollback}, encargado de deshacer exclusivamente lo que estaba
+creado en el momento del fallo. En definitiva, \texttt{create()} puede terminar
+de 2 formas: o retorna un \texttt{Environment} completamente funcional, o lanza
+la excepción original con todos los recursos parciales eliminados.
+
+\subsection{Estrategia de \textit{baseline} para los monitores}
+
+Los monitores de Capa 2 necesitan distinguir entre los cambios que el contenedor
+produce durante su inicialización (instalación de paquetes, arranque de
+servicios, creación de archivos temporales) y los cambios provocados por el
+estudiante durante el ejercicio. Para esto, el \textit{provider} captura un
+\textit{baseline} del estado del contenedor una vez que su inicialización se
+considera concluida.
+
+La estrategia de detección de ese momento es híbrida y se elige automáticamente
+según las capacidades de la imagen. Si el contenedor vulnerable declara un
+\texttt{HEALTHCHECK}, el \textit{provider} consulta periódicamente el estado de
+salud reportado por Docker hasta que alcance \texttt{healthy}. Esta forma es la
+preferida porque elimina la incertidumbre de un tiempo de espera fijo y se
+ajusta al tiempo real de arranque de cada imagen. Si la imagen no define un
+\texttt{HEALTHCHECK}, el \textit{provider} recurre al modo \texttt{delay}:
+espera un intervalo configurable (con valor por defecto y ajustable por
+escenario mediante \texttt{startup\_delay\_seconds}) antes de tomar el
+\textit{baseline}. Si el \texttt{HEALTHCHECK} existe pero no llega a
+\texttt{healthy} dentro del \textit{timeout} configurado, el \textit{provider}
+toma el \textit{baseline} de todas formas y emite una advertencia, priorizando
+la disponibilidad del entorno por sobre la garantía de arranque limpio.
+
+El \textit{baseline} resultante se guarda en disco, junto con la estrategia que
+se usó para capturarlo. Esto permite que el \textit{provider} se reinicie sin
+perder la referencia, evitando que reinicios del \textit{daemon} marquen como
+cambios del estudiante todo lo que el contenedor escribió durante su arranque
+original.
 
 \section{Capa 2: Monitoreo Pasivo}
 
