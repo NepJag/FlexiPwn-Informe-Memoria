@@ -1,1 +1,130 @@
 \chapter{Conclusión}
+
+% ===========================================================================
+% BOSQUEJO DE TRABAJO — Por desarrollar tras la validación del Capítulo 5.
+%
+% La mayoría de las secciones puede escribirse a partir de lo ya documentado
+% (objetivos del Capítulo 1, contribuciones implícitas en Capítulos 3 y 4,
+% limitaciones reconocidas en Capítulos 3 y 4). La sección 6.5 es opcional
+% y depende de la reflexión personal una vez cerrado el resto.
+% ===========================================================================
+
+% ---------------------------------------------------------------------------
+% 6.1 Síntesis del trabajo realizado
+% ---------------------------------------------------------------------------
+% - Resumir qué se construyó: plataforma educativa autohospedable de
+%   ciberseguridad ofensiva con validación automática basada en estado del
+%   sistema, motor de evaluación con targets atómicos y nodos lógicos
+%   (and/or/not), y daemon REPL multi-cliente para uso educativo.
+% - Recorrer los OBJETIVOS ESPECÍFICOS del Capítulo 1 y marcar el estado:
+%     1. Arquitectura modular multi-entorno con virtualización   (cumplido).
+%     2. Configuración declarativa YAML accesible al educador    (cumplido).
+%     3. Motor de validación automática basado en estado         (cumplido).
+%     4. Herramientas CLI de seguimiento y administración        (cumplido).
+%     5. Poner la plataforma a disposición del CLCERT            (parcial:
+%        depende de la entrega y las pruebas en su infraestructura — ver
+%        Capítulo 5).
+
+% ---------------------------------------------------------------------------
+% 6.2 Contribuciones
+% ---------------------------------------------------------------------------
+% Tres ejes a desarrollar:
+%
+% - PEDAGÓGICO: trazabilidad real del progreso del estudiante. En lugar de un
+%   flag binario "completó / no completó", el educador puede ver QUÉ acción
+%   concreta disparó cada target gracias al trigger_event persistido en cada
+%   TargetResult, y reconstruir la secuencia del ataque. Esto cambia la
+%   pregunta de "¿lo logró?" a "¿cómo lo logró?".
+%
+% - TÉCNICO Y DE COMUNIDAD: contribución al ecosistema open-source de
+%   detección de intrusiones. El código, los patrones de detección
+%   (network_payload, process_running con ancestros, sidecar tcpdump por
+%   escenario, etc.) y la metodología están en un repositorio público y
+%   auditable, frente a las reglas cerradas de los IDS comerciales.
+%
+% - ARQUITECTÓNICO: separación clara en 4 capas con contratos explícitos.
+%   Esto hace al sistema extensible (nuevos tipos de target en Capa 3 sin
+%   tocar Capa 1) y portable (cambio de tecnología de virtualización
+%   implementando solo EnvironmentProvider). El precedente más cercano,
+%   Tectonic, mezcla estas responsabilidades; FlexiPwn las separa.
+
+% ---------------------------------------------------------------------------
+% 6.3 Limitaciones reconocidas
+% ---------------------------------------------------------------------------
+% Buena parte ya está documentada en los capítulos previos y se puede citar
+% sin reabrir la discusión:
+%
+% - GAP DEL POLLING: procesos sub-segundo, fileless, PPID spoofing y técnicas
+%   evasivas avanzadas quedan fuera del alcance de detección. Aceptable para
+%   el contexto educativo. (Detalle en Capítulo de Implementación, Sección
+%   "Limitaciones del Monitoreo por Polling").
+%
+% - LIMITACIONES DEL NETWORKMONITOR:
+%     * Tráfico cifrado (TLS) y protocolos binarios solo exponen metadatos.
+%     * Fragmentación de payload entre paquetes TCP — el parser opera por
+%       paquete completo, sin reensamblado a nivel de flujo.
+%
+% - LIMITACIÓN DEL LOGMONITOR: dependencia del flush de la aplicación;
+%   exige cooperación del Dockerfile del educador (PYTHONUNBUFFERED=1 o
+%   equivalente).
+%
+% - DEUDA TÉCNICA HEREDADA DE ITERACIONES TEMPRANAS, que queda como
+%   limpieza pendiente en el repositorio:
+%     * Tipos de target file_exists, http_response_contains y
+%       database_query_result definidos en el schema Pydantic pero sin
+%       evaluador productor — se eliminarán del schema (no se implementarán).
+%     * Campo attacker_ports del EnvironmentConfig sin uso real: el binding
+%       del SSH del atacante se asigna automáticamente desde el código.
+%     * Dependencia watchdog declarada en pyproject.toml sin uso en código
+%       (residuo de la implementación inicial con inotify, sustituida por
+%       container.diff()).
+%
+% - VALIDACIÓN EN INFRAESTRUCTURA REAL: pendiente al momento de redactar.
+%   La eficacia del sistema en aula multi-estudiante y la robustez bajo carga
+%   están parcialmente cubiertas — ver Capítulo 5.
+
+% ---------------------------------------------------------------------------
+% 6.4 Trabajo futuro
+% ---------------------------------------------------------------------------
+% Organizado en dos horizontes temporales:
+%
+% CORTO PLAZO — Limpieza y correcciones ya identificadas
+%
+% - Remover los tipos de target sin productor (file_exists,
+%   http_response_contains, database_query_result) del schema Pydantic y de
+%   todo material derivado.
+% - Remover el campo attacker_ports del EnvironmentConfig.
+% - Remover la dependencia watchdog del pyproject.toml.
+% - Rehacer el diagrama TikZ de arquitectura para reflejar la interfaz
+%   abstracta + tecnología concreta en Capa 1 y agregar el monitor de red en
+%   Capa 2.
+% - Cerrar la entrega al CLCERT con documentación operativa.
+%
+% MEDIANO Y LARGO PLAZO — Extensiones del sistema
+%
+% - PodmanProvider como segundo backend de la interfaz EnvironmentProvider
+%   (justificación detallada en Capítulo de Implementación, sección de
+%   virtualización). Mejora arquitectónica de seguridad sin afectar capas
+%   superiores.
+% - INTERFAZ WEB que exponga las mismas operaciones que la CLI clásica
+%   manteniendo la lógica de negocio intacta. Útil especialmente para el
+%   CLCERT y estudiantes con menos manejo de línea de comandos.
+% - DETECCIÓN BASADA EN eBPF / Falco / Sigma rules como complemento del
+%   polling, para cerrar el gap de detección de procesos sub-segundo y
+%   técnicas evasivas (fileless, PPID spoofing).
+% - KATA CONTAINERS o gVisor como runtime alternativo para ejercicios de
+%   kernel exploitation, donde el aislamiento de Docker rootless no alcanza.
+% - REENSAMBLADO TCP en NetworkMonitor para soportar payloads fragmentados
+%   entre paquetes (necesario para escenarios con tráfico de mayor volumen).
+% - DOCUMENTACIÓN para creadores de escenarios + plantilla de Dockerfile
+%   recomendada, cubriendo el caso del flush y otras buenas prácticas que
+%   evitan los puntos ciegos del LogMonitor.
+
+% ---------------------------------------------------------------------------
+% 6.5 Reflexión final  (una página corta)
+% ---------------------------------------------------------------------------
+% - Lugar del proyecto en el ecosistema open-source de cyber ranges
+%   educativos en español, y vínculo con el contexto de la universidad y el
+%   CLCERT.
+% - Aprendizajes personales: lo más valioso de construirlo, lo que se haría
+%   distinto si se empezara otra vez.
