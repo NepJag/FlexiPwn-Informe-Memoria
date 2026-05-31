@@ -149,7 +149,7 @@ progreso de los estudiantes.
 
 FlexiPwn necesita instanciar entornos de práctica vulnerables para múltiples
 estudiantes en paralelo. Cada entorno debe ser aislado, reseteable y
-monitoreable desde Python. La elección de tecnolog ía de virtualización impacta
+monitoreable desde Python. La elección de tecnología de virtualización impacta
 directamente en cinco dimensiones que se ponderaron según su importancia para el
 proyecto: seguridad del \textit{host} (30\%), por tratarse de ejercicios con
 exploits activos; rapidez de inicialización (20\%), que define la experiencia
@@ -345,6 +345,7 @@ de 2 formas: o retorna un \texttt{Environment} completamente funcional, o lanza
 la excepción original con todos los recursos parciales eliminados.
 
 \subsection{Estrategia de \textit{baseline} para los monitores}
+\label{sec:capa1-baseline}
 
 Los monitores de Capa 2 necesitan distinguir entre los cambios que el contenedor
 produce durante su inicialización (instalación de paquetes, arranque de
@@ -375,32 +376,78 @@ original.
 
 \section{Capa 2: Monitoreo Pasivo}
 
-% [Descripción de FilesystemMonitor con container.diff(),
-% ProcessMonitor con container.top() y lstart,
-% MonitorOrchestrator, y baseline de startup]
+La Capa 2 está compuesta por cuatro monitores independientes:
+\texttt{FilesystemMonitor}, \texttt{ProcessMonitor}, \texttt{LogMonitor} y
+\texttt{NetworkMonitor}, y que a su vez están coordinados por un
+\texttt{MonitorOrchestrator} por entorno. El orquestador es responsable de
+invocar el ciclo de \textit{polling} de cada monitor con intervalos
+configurables, manejar el \textit{timeout} global del escenario, lanzar la señal
+de detención cuando un contenedor desaparece y emitir todos los eventos
+generados a través del único \texttt{callback} \texttt{on\_event} que consume la
+Capa 3. Los tres primeros monitores observan el contenedor vulnerable
+exclusivamente desde fuera, usando el SDK de Docker o lectura directa de
+archivos del \textit{host}, mientras que el cuarto se apoya en un
+\textit{sidecar} de captura y que se describe en la Sección~\ref{sec:capa2}.
 
-\subsection{Limitaciones del Monitoreo por Polling}
+\subsection{FilesystemMonitor}
 
-El monitor de procesos consulta \texttt{container.top()} cada dos segundos.
-Procesos que nacen y terminan dentro de ese intervalo son invisibles para el
-sistema. Los vectores no detectables en el estado actual incluyen: procesos
-efímeros con duración menor a dos segundos, técnicas de \textit{PPID spoofing},
-y ataques \textit{fileless} mediante llamadas al sistema como \texttt{ptrace} o
-\texttt{memfd\_create}. Para el alcance educativo del proyecto, este nivel de
-detección es aceptable dado que los ejercicios no requieren detectar procesos
-sub-segundo ni técnicas de evasión avanzadas esperables en un atacante
-universitario.
+El monitor de \textit{filesystem} consulta \texttt{container.diff()} en cada
+iteración a través del \texttt{DockerRootlessProvider}. La llamada retorna el
+conjunto de archivos creados, modificados o eliminados respecto a la imagen base
+del contenedor; el monitor compara ese conjunto contra los \textit{paths} que ya
+emitió en iteraciones anteriores (\texttt{\_seen\_paths}) y genera un
+\texttt{MonitorEvent} por cada \textit{path} nuevo o cuya naturaleza haya
+cambiado (por ejemplo, un archivo modificado que pasa a borrado). Los
+\texttt{event\_type} emitidos son \texttt{file\_created},
+\texttt{file\_modified} y \texttt{file\_deleted}, según el código que Docker
+asigna a cada diferencia.
 
-De forma análoga, \texttt{container.diff()} retorna una instantánea del estado
-acumulado del filesystem desde el inicio del contenedor. Para distinguir cambios
-del sistema de inicialización de cambios realizados por el estudiante, se
-captura un \textit{baseline} del \textit{diff} una vez que el contenedor está
-estable. Si la imagen tiene un \texttt{HEALTHCHECK} configurado, el sistema
-espera hasta que el contenedor reporte estado \texttt{healthy} antes de capturar
-el baseline; de lo contrario, espera un delay configurable (por defecto 3
-segundos) como mecanismo de respaldo.
+\subsection{ProcessMonitor}
 
-\subsection{Monitor de Red}
+\begin{sloppypar}
+El monitor de procesos consulta \texttt{container.top()}, también invocado a
+través del \texttt{DockerRootlessProvider}, y reconstruye en memoria el árbol de
+procesos del contenedor. El \textit{baseline} de procesos se toma en la primera
+invocación tras el arranque, una vez que el \textit{provider} ya garantizó que
+el contenedor está estable (Sección~\ref{sec:capa1-baseline}). En cada iteración
+posterior se identifican los procesos nuevos por un \texttt{process\_id}
+derivado de combinar el \texttt{pid} con el tiempo de inicio reportado por
+\texttt{lstart}, lo que evita falsos negativos cuando el sistema reutiliza un
+\texttt{pid} liberado.
+\end{sloppypar}
+
+Los eventos \texttt{process\_spawned} incluyen no solo el comando del proceso
+(\texttt{cmd}) sino también los comandos de su proceso padre
+(\texttt{ppid\_cmd}) y de la cadena completa de ancestros
+(\texttt{ancestor\_cmds}), reconstruidos desde \texttt{container.top()}. Esta
+información viaja en el evento y es la Capa 3 la que decide si filtrar por
+\textit{euid}, por substrings en \texttt{cmd}, en \texttt{ppid\_cmd} o en
+cualquiera de los ancestros. La Capa 2 se mantiene agnóstica respecto a qué
+procesos son interesantes, preservando la separación entre observación y
+evaluación.
+
+\subsection{LogMonitor}
+
+El monitor de \textit{logs} no usa el SDK de Docker: lee los archivos del
+\textit{host} en las rutas que el contenedor escribe a través de \textit{bind
+mounts} declarados en el campo \texttt{log\_paths} del escenario. En la primera
+invocación posiciona el cursor al final de cada archivo para no emitir eventos
+por el contenido histórico anterior al \textit{run}, y en las invocaciones
+siguientes lee solo las líneas nuevas desde la última posición conocida.
+
+Cada línea se intenta parsear como JSON. Si el \textit{parsing} tiene éxito, el
+evento \texttt{log\_entry} expone los campos estructurados en
+\verb|details["parsed"]|. Si la línea es texto plano (caso de logs como el
+\texttt{general\_log} de MySQL), el evento la expone en
+\verb|details["raw_line"]|. Esta auto-detección por línea evita que el educador
+deba declarar el formato del \textit{log} en el escenario y permite mezclar
+fuentes estructuradas y no estructuradas en el mismo ejercicio. El monitor
+también detecta el truncamiento del archivo, por ejemplo, cuando la aplicación
+reinicia y vuelve a abrir su \textit{log}, comparando el tamaño actual contra el
+último observado. Si el archivo decreció, reposiciona el cursor al inicio y
+recomienza la lectura.
+
+\subsection{NetworkMonitor}
 \label{sec:capa2}
 
 Para escenarios que requieren observar tráfico de red, la Capa 2 instancia un
@@ -467,6 +514,59 @@ una ráfaga de tráfico corta podría quedar atrapado en el buffer si no llega u
 cabecera posterior que dispare su procesamiento. Para evitar esto, al final de
 cada ciclo de polling el monitor procesa el paquete en curso si el buffer no
 está vacío, sin esperar al siguiente ciclo.
+
+\subsection{Limitaciones del Monitoreo por Polling}
+
+El monitor de \textit{filesystem} usa \texttt{container.diff()}, que retorna una
+\textit{snapshot} del estado acumulado del \textit{filesystem} desde el inicio
+del contenedor. Para distinguir los cambios producidos a iniciar el sistema de
+los cambios realizados por el estudiante, se captura un \textit{baseline} del
+\textit{diff} una vez que el contenedor está estable: si la imagen tiene un
+\texttt{HEALTHCHECK} configurado, el sistema espera hasta que el contenedor
+reporte estado \texttt{healthy}, de lo contrario, espera un \textit{delay}
+configurable (por defecto 3 segundos) como mecanismo de respaldo. Esto crea una
+ventana de tolerancia al inicio del \textit{run} en la que cambios reales del
+estudiante podrían absorberse en el \textit{baseline} si ocurren antes de que el
+contenedor se considere estable.
+
+De forma análoga, el monitor de procesos consulta \texttt{container.top()} cada
+dos segundos. Procesos que nacen y terminan dentro de ese intervalo son
+invisibles para el sistema. Los eventos no detectables en el estado actual
+incluyen: procesos efímeros con duración menor a dos segundos, técnicas de
+\textit{PPID spoofing}, y ataques \textit{fileless} mediante llamadas al sistema
+como \texttt{ptrace} o \texttt{memfd\_create}. Para el alcance educativo del
+proyecto, este nivel de detección es aceptable dado que los ejercicios no
+requieren detectar procesos sub-segundo ni técnicas de evasión avanzadas
+esperables en un atacante universitario.
+
+El monitor de \textit{logs} hereda dos limitaciones del seguimiento por posición
+de cursor. La primera es la rotación: si la aplicación rota su archivo
+(\textit{rename} del antiguo, creación de uno nuevo en la misma ruta), el
+monitor sigue leyendo el original y deja de ver las líneas que se escriben en el
+archivo nuevo hasta el siguiente ciclo, donde reabre por ruta y vuelve a
+posicionar el cursor al final. La segunda es la dependencia del \textit{flush}
+de la aplicación: las líneas que quedan en \textit{buffer} del lado del
+contenedor, solo se vuelven visibles para el \textit{host} cuando la aplicación
+las descarga, no en tiempo real. Para los escenarios actuales esto es aceptable
+porque las aplicaciones afectadas configuran \textit{logging} con \textit{flush}
+inmediato, pero un escenario con una aplicación menos cooperativa exigiría
+forzar el \textit{flush} desde el \texttt{Dockerfile} de la imagen vulnerable.
+
+El monitor de red comparte el principio de pasividad pero suma sus propias
+restricciones. Por construcción, solo extrae el contenido ASCII imprimible del
+\textit{payload}, así que protocolos binarios o cifrados (TLS, el protocolo
+binario de MySQL en ciertas configuraciones) exponen únicamente sus metadatos ,
+como IPs, puertos y \textit{flags} TCP, no su contenido legible. Las reglas
+\texttt{network\_payload} no matchean dentro de un canal TLS sin descifrarlo, lo
+que excluye los escenarios web sobre HTTPS sin haber manipulado TLS dentro del
+entorno. La segunda restricción es la fragmentación: un \textit{payload} grande
+(por ejemplo, una consulta SQL larga) puede distribuirse entre varios paquetes
+TCP, y como el \textit{parser} opera por unidad de paquete completo, una
+expresión regular cuyo \textit{match} cruce ese límite no se dispara. En el
+contexto educativo, los \textit{payloads} diseñados para los escenarios actuales
+caben en un único paquete. Un escenario con tráfico de mayor volumen requeriría
+reensamblado a nivel de flujo TCP, lo que excede el alcance de la implementación
+actual.
 
 \section{Capa 3: Motor de Evaluación}
 
