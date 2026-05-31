@@ -615,5 +615,173 @@ preservando la pasividad del monitoreo.
 \section{Capa 4: Administración}
 \label{sec:capa4impl}
 
-% [Descripción de la CLI con Typer + Rich, comando demo privesc,
-% MonitorOrchestrator como punto de integración]
+La Capa 4 es la cara visible del sistema para el educador: administra el ciclo
+de vida de los \textit{runs}, persiste el estado en SQLite, y provee dos formas
+de operar la plataforma. La primera es una CLI tradicional (\texttt{flexipwn
+scenario list}, \texttt{flexipwn run start}, etc.) por si se quiere hacer algún
+tipo de \textit{scripting}. La segunda es un \textit{daemon} con un REPL
+interactivo (\texttt{flexipwn daemon start}) que mantiene en memoria los
+monitores de Capa 2 y las evaluaciones de Capa 3 corriendo de forma continua
+sobre todos los \textit{runs} activos en paralelo. Esta sección describe los
+componentes que sostienen ambos caminos.
+
+\subsection{CLI con Typer y Rich}
+
+Toda la línea de comandos se construye sobre \texttt{Typer}, que deriva
+comandos, sub-comandos, validación de argumentos y páginas de ayuda a partir de
+los tipos declarados en las firmas de las funciones. La CLI se organiza en
+cuatro sub-aplicaciones: \texttt{scenario}, \texttt{participant}, \texttt{run} y
+\texttt{daemon}. Todas montadas bajo la aplicación raíz \texttt{flexipwn} y con
+sus módulos correspondientes en \texttt{layer4/cli/}. Esta división permite
+extender un grupo de comandos sin afectar al resto y mantiene el código de cada
+sub-aplicación en un solo archivo.
+
+El módulo \texttt{Rich} se usa exclusivamente para el \textit{output}: tablas de
+escenarios y \textit{runs}, paneles con las credenciales SSH del estudiante,
+\textit{spinners} mientras se materializan los entornos, e indicadores con
+código de color para los estados (\texttt{running}, \texttt{completed},
+\texttt{failed}, \texttt{timeout}). El uso de Typer + Rich es un patrón estándar
+para CLI en Python y reduce significativamente el código que la plataforma debe
+escribir para entregar una experiencia de terminal limpia.
+
+\subsection{Modelo de \textit{daemon}: \textit{foreground}, \textit{detach} y \textit{attach}}
+
+\texttt{flexipwn daemon start} arranca el proceso \textit{daemon}. En su modo
+por defecto, este queda en \textit{foreground} y abre directamente un REPL
+interactivo construido sobre \texttt{prompt\_toolkit}, desde el que el educador
+puede ejecutar los mismos sub-comandos que ofrece la CLI clásica
+(\texttt{scenario load}, \texttt{run start}, \texttt{participant add}, etc.) sin
+pagar el costo de arrancar la plataforma una vez por comando. El REPL combina en
+la misma terminal los comandos que el educador escribe y los eventos que los
+monitores emiten en tiempo real, sin que un flujo interrumpa al otro: a medida
+que la Capa 3 marca \textit{targets} como satisfechos, los eventos aparecen
+encima del cursor sin alterar lo que el educador esté escribiendo.
+
+Para los momentos en que el educador no quiere mantener una terminal abierta
+durante toda la sesión, el modo \texttt{flexipwn daemon start --detach} lanza el
+\textit{daemon} en \textit{background}, redirige su salida a
+\texttt{\textasciitilde/.flexipwn/daemon.log} y abre un socket Unix de control
+en \texttt{\textasciitilde/.flexipwn/daemon.sock} con permisos \texttt{0o600},
+así que solo el dueño del proceso puede conectarse. Desde cualquier otra
+terminal, \texttt{flexipwn daemon attach} establece una conexión por ese socket
+y abre un REPL idéntico al de \textit{foreground}. Varios clientes pueden
+\textit{attachear} simultáneamente al mismo \textit{daemon} y todos reciben el
+mismo \textit{broadcast} de eventos. Cerrar un cliente \textit{attached} con
+\texttt{exit} o \texttt{Ctrl+D} no detiene el \textit{daemon}, ya que para
+apagarlo de verdad existe el comando dedicado \texttt{flexipwn daemon stop}.
+
+El protocolo del socket es simple: cada mensaje es una línea UTF-8 terminada en
+\texttt{\textbackslash{}n}, prefijada por un \textit{frame} direccional que
+distingue las distintas categorías de mensaje que viajan en ambos sentidos:
+comandos del cliente, líneas de salida del servidor, solicitudes de
+\textit{input} interactivo cuando un comando dispara un \textit{wizard}, y
+señales de fin de respuesta. Este \textit{framing} permite que el cliente
+muestre coherentemente la salida del comando que está ejecutando, los
+\textit{prompts} de los \textit{wizards} y los eventos asíncronos que los
+monitores emiten en tiempo real, todos viajando sobre la misma conexión. Un
+proxy de consola \textit{thread-local} se encarga de dirigir el \textit{output}
+de cada comando al cliente que lo originó, evitando que los \textit{prints} de
+un cliente se mezclen con los de otro cuando múltiples educadores operan en
+paralelo sobre el mismo \textit{daemon}.
+
+\subsection{Coordinación interna: \texttt{DaemonLoop} y \texttt{SuperMonitor}}
+\begin{sloppypar}
+Cada \textit{run} sigue teniendo su propio \texttt{MonitorOrchestrator} para
+coordinar los cuatro monitores de su entorno (Capa 2), pero el \textit{daemon}
+no le da a cada uno un hilo propio: en lugar de eso, todos los orquestadores
+activos se registran en un \texttt{SuperMonitor} \textit{singleton} que mantiene
+un único hilo supervisor permanente y reparte sus invocaciones a
+\texttt{poll\_once()} sobre un \texttt{ThreadPoolExecutor} acotado. El
+\texttt{ThreadPoolExecutor} viene del módulo \texttt{concurrent.futures},
+estándar para tareas paralelas con paralelismo limitado: en lugar de crear un
+\textit{thread} nuevo por cada invocación, operación relativamente costosa en
+Python, mantiene una \textit{pool} fija de \textit{workers} reutilizables y
+encola las tareas que no encuentran un \textit{worker} libre. En cada iteración,
+el supervisor despacha el \texttt{poll\_once()} de cada orquestador al pool y
+espera a que todos terminen antes de revisar \textit{timeouts} por entorno y
+dormir hasta el siguiente ciclo. El intervalo entre ciclos y el tamaño del pool
+son configurables, pero por defecto, el supervisor itera cada dos segundos y
+permite hasta dieciséis \texttt{poll\_once()} concurrentes. Si hay más
+\textit{runs} que \textit{workers} disponibles, los sobrantes se procesan
+inmediatamente a medida que los anteriores liberan su \textit{worker}, por lo
+que cada ciclo despacha eventualmente a todos los \textit{runs} activos pero
+limitando el consumo simultáneo de \textit{threads} del \textit{daemon}.
+\end{sloppypar}
+
+Por encima del \texttt{SuperMonitor}, el \texttt{DaemonLoop} traduce los eventos
+de las capas inferiores a actualizaciones de estado en la base de datos: cada
+\texttt{MonitorEvent} se persiste en la tabla \texttt{RunEvent} para servir como
+bitácora del ejercicio, y cada cambio que la Capa 3 reporta a través de
+\texttt{on\_update} se refleja en los registros de \texttt{TargetResult} y
+\texttt{ExerciseRun} correspondientes. Existe una \textit{race condition}
+conocida entre el motor de evaluación y la observación pasiva, que el
+\texttt{DaemonLoop} maneja explícitamente con una regla de precedencia: los
+estados terminales son irreversibles. Si un contenedor desaparece
+inesperadamente, por ejemplo, y un \textit{poll} en vuelo reporta
+\texttt{on\_stopped} pero el motor ya marcó el \textit{run} como completado, el
+\textit{loop} preserva el estado terminal y no lo sobrescribe con
+\texttt{stopped}. Al arrancar, el \textit{daemon} también ejecuta
+\texttt{cleanup\_all} en el \textit{provider} de Capa 1 para limpiar el estado
+persistido con los recursos reales de Docker.
+
+\subsection{Persistencia y ciclo de vida de un \textit{run}}
+\begin{sloppypar}
+El acceso a la base de datos no se hace directamente desde la CLI ni desde el
+\texttt{DaemonLoop}: pasa por un módulo de repositorio
+(\texttt{layer4/db/repository.py}) que expone funciones de alto nivel como
+\texttt{create\_participant}, \texttt{start\_run},
+\texttt{finalize\_run\_state}, \texttt{record\_event},
+\texttt{record\_target\_result}, entre otras, y que es el único que abre
+sesiones SQLModel. Esta separación mantiene el resto del sistema agnóstico al
+mapeo objeto-relacional y permite cambiar el motor de persistencia sin tocar las
+capas superiores.
+\end{sloppypar}
+
+El ciclo de un \textit{run} es predecible. \texttt{run start} dispara un
+\textit{wizard} que pide al educador escenario y participante, invoca
+\texttt{provider.create()} para materializar el entorno, asigna un puerto SSH
+del rango configurado, registra el \textit{run} en la base con estado
+\texttt{running} y lo entrega al \texttt{SuperMonitor}. A partir de ese momento,
+los eventos de Capa 2 fluyen al motor de Capa 3 y los resultados se persisten
+incrementalmente. El \textit{run} termina por una de cuatro vías:
+\texttt{completed} cuando todos los \textit{targets} requeridos se satisfacen,
+\texttt{timeout} cuando se agota el límite de tiempo del escenario,
+\texttt{stopped} cuando el educador lo detiene desde la CLI o el REPL, o
+\texttt{failed} cuando ocurre un error irrecuperable durante la observación o la
+materialización. \texttt{run reset} es una operación intermedia que destruye los
+contenedores actuales y los recrea con un \texttt{env\_id} nuevo, asociándolo al
+mismo \texttt{ExerciseRun} y al mismo participante en la base de datos: los
+\texttt{TargetResult} del intento previo se marcan con un \texttt{reset\_at} en
+lugar de borrarse, lo que permite al estudiante reintentar el escenario
+manteniendo trazable el historial de intentos sucesivos sobre el mismo ejercicio.
+
+\subsection{Credenciales de los participantes}
+
+\texttt{participant add} genera un nombre de usuario del tipo
+\texttt{student-XXXXXX} (un prefijo fijo y seis caracteres hexadecimales
+derivados de \texttt{secrets.token\_hex(3)}) y una contraseña en texto plano
+usando \texttt{secrets.token\_urlsafe(12)}. La contraseña en claro se muestra al
+educador una única vez al crearlo, y solo se persiste su
+\textit{hash} \texttt{bcrypt} con \textit{salt} aleatorio. Si el estudiante
+pierde su clave, \texttt{participant reset-password} genera una nueva, la
+muestra al educador y reemplaza el \textit{hash} en la base, es decir, nunca se recupera
+la contraseña original. Esta contraseña se usa para que el estudiante acceda por
+SSH al contenedor atacante de su entorno y, desde allí, ataque al contenedor
+vulnerable según lo disponga el escenario. El modelo descrito en el Capítulo~\ref{sec:diseño} mantiene al
+estudiante fuera del \textit{host} en todo momento.
+
+\subsection{Asignación masiva con \texttt{batch-start}}
+\begin{sloppypar}
+Para una sesión de con varios estudiantes, iniciar los \textit{runs} de a
+uno desde el REPL no escala. El comando \texttt{flexipwn run batch-start} recibe
+un archivo YAML con pares escenario/cantidad de \textit{runs} a
+crear, los materializa en paralelo aprovechando el mismo
+\texttt{ThreadPoolExecutor} del \texttt{SuperMonitor}, y opcionalmente vuelca un
+CSV con las columnas \texttt{scenario}, \texttt{username}, \texttt{env\_id},
+\texttt{ssh\_port} y \texttt{ssh\_password}. El educador puede distribuir la información del CSV a
+los participantes y cada estudiante recibe sus credenciales y el endpoint SSH
+del atacante asignado a su \textit{run}. El comando es idempotente respecto a
+los \textit{runs} ya creados: si se invoca con un archivo ampliado a mitad de
+sesión, no duplica entornos sino que agrega los nuevos a los que ya están
+corriendo bajo el mismo \textit{daemon}.
+\end{sloppypar}
