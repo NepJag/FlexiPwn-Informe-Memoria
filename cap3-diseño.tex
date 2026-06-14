@@ -85,7 +85,10 @@ tipo de aplicación. La eficacia de cada método de detección sigue dependiendo
 las características del sistema vulnerable expuesto. La detección de inyección
 SQL \texttt{(log\_pattern + network\_payload)}, por ejemplo, asume que el motor
 de base de datos elegido permite exponer un \textit{query log} legible por el
-monitor (caso de MySQL con \texttt{general\_log}). Un escenario que use una base
+monitor (caso de MySQL con \texttt{general\_log}) y, cuando además se quiere
+inspeccionar el payload SQL a nivel de red, que la conexión
+\textit{cliente-servidor} opere sin TLS en el escenario, dado que el monitor de
+red solo expone metadatos sobre tráfico cifrado. Un escenario que use una base
 de datos que no exponga logs equivalentes obligaría al educador a definir
 condiciones de éxito por otras señales. Esta dependencia es propia del dominio
 del ejercicio y no del sistema de detección: el motor sigue ejecutando reglas
@@ -394,7 +397,10 @@ un target cambia de estado o cuando \texttt{completed} pasa de \texttt{False} a
 \texttt{True}. Los logros son irreversibles dentro de un \textit{run}: una vez
 que \texttt{matched} es \texttt{True}, no vuelve a \texttt{False}. La Capa 4
 consume estos resultados para persistirlos en SQLite mediante la entidad
-\texttt{TargetResult} y para notificar al usuario a través de la CLI.
+\texttt{TargetResult} y para emitirlos a través de un \texttt{NotificationSink}
+central que decide, según política por tipo, qué se imprime en el TTY del
+educador y qué queda únicamente en log y en las vistas agregadas \texttt{run
+dashboard} y \texttt{run feed}.
 \subsection{Capa 4 → Capa 1: Ciclo de Vida}
 
 La Capa 4 es la única capa que modifica el estado de la Capa 1, y lo hace
@@ -531,10 +537,15 @@ level: beginner
 category: pwning
 
 environment:
-  image: "vuln-privesc"
+  image: "flexipwn/vuln-sudo"
+  attacker_image: "flexipwn/attacker"
+  log_paths: []
+  ports: []
+  startup_delay_seconds: 3
 
 hints:
-  - "Revisa tus permisos sudo con: sudo -l"
+  - "Conéctate al vulnerable desde el atacante: ssh ctfuser@flexipwn-<env_id>-vulnerable (clave: ctfpassword)"
+  - "Una vez dentro, revisa tus permisos sudo con: sudo -l"
   - "Vim puede ejecutar comandos del sistema con :!comando"
 
 targets:
@@ -542,13 +553,17 @@ targets:
     path: "/root/"
     pattern: "*.txt"
     description: "Archivo .txt creado en directorio root"
+
   - type: file_modified
     path: "/etc/passwd"
     description: "Archivo de usuarios del sistema modificado"
+
   - type: process_running
     euid: 0
-    cmd_contains: "/bin/bash"
-    description: "Shell root activa"
+    cmd_contains: "bash"
+    ppid_cmd_contains: "vim"
+    ancestor_contains: "sudo"
+    description: "Shell root lanzada desde vim (escalación exitosa)"
 
 condition: all
 timeout_seconds: 1800
@@ -603,8 +618,13 @@ borrar el historial previo.
 
 \textbf{TargetResult} registra el estado de evaluación de cada objetivo
 individual dentro de un \textit{run}, incluyendo el evento exacto que causó el
-\textit{match} serializado como JSON. Tiene índice ordinario sobre
-\texttt{run\_id} para recuperar eficientemente todos los resultados de un run.
+\textit{match} serializado como JSON. Cuando un target de primer nivel es un
+nodo lógico (\texttt{and}, \texttt{or} o \texttt{not}), se persiste un
+\texttt{TargetResult} por cada hoja del árbol además del nodo raíz, y
+el campo \texttt{children} reconstruye la estructura lógica para que la Capa 4
+pueda presentar al educador qué sub-condición disparó el \textit{match}. Tiene
+índice ordinario sobre \texttt{run\_id} para recuperar eficientemente todos los
+resultados de un run.
 
 \textbf{RunEvent} guarda el flujo completo de eventos del monitor asociados a un
 run (\texttt{monitor\_type}, \texttt{event\_type}, \texttt{details\_json},

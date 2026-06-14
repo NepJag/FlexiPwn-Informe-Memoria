@@ -457,10 +457,11 @@ namespace de red del sistema vulnerable.
 
 \subsubsection*{Contenedor sidecar}
 \begin{sloppypar}
-    Al crear el entorno, si el escenario define al menos un target de tipo
-    \texttt{network\_*}, \texttt{DockerRootlessProvider} lanza un contenedor
-    adicional basado en la imagen \texttt{nicolaka/netshoot} con la siguiente
-    configuración:
+    Al crear el entorno, si el árbol de targets del escenario contiene al menos
+    una hoja \texttt{network\_*} (sea como target de primer nivel o anidada en
+    cualquier nivel dentro de nodos \texttt{and}, \texttt{or} o \texttt{not}),
+    \texttt{DockerRootlessProvider} lanza un contenedor adicional basado en la
+    imagen \texttt{nicolaka/netshoot} con la siguiente configuración:
 \end{sloppypar}
 
 \begin{itemize}
@@ -610,7 +611,15 @@ La inspección de consultas SQL no requiere un evaluador con acceso a la base de
 datos: se realiza sobre el tráfico de red mediante \texttt{network\_payload} con
 un filtro \texttt{capture\_filter: "port 3306"}, que captura las consultas
 directamente del tráfico TCP entre la aplicación y el motor de base de datos,
-preservando la pasividad del monitoreo.
+preservando la pasividad del monitoreo. Esto exige que el motor de base de
+datos del escenario opere sin TLS en la conexión \textit{cliente-servidor}: la
+imagen \texttt{flexipwn/vuln-sqli-mysql} construida para los escenarios actuales
+desactiva TLS por configuración para mantener el payload SQL visible al
+\textit{sniffer}, decisión didáctica del escenario y no del sistema. Un
+escenario que conserve TLS forzado expondría únicamente metadatos (IPs,
+puertos y \textit{flags} TCP) al monitor de red, y obligaría al educador a
+apoyarse exclusivamente en \texttt{log\_pattern} sobre el
+\texttt{general\_log} para detectar el ataque.
 
 \section{Capa 4: Administración}
 \label{sec:capa4impl}
@@ -651,11 +660,15 @@ por defecto, este queda en \textit{foreground} y abre directamente un REPL
 interactivo construido sobre \texttt{prompt\_toolkit}, desde el que el educador
 puede ejecutar los mismos sub-comandos que ofrece la CLI clásica
 (\texttt{scenario load}, \texttt{run start}, \texttt{participant add}, etc.) sin
-pagar el costo de arrancar la plataforma una vez por comando. El REPL combina en
-la misma terminal los comandos que el educador escribe y los eventos que los
-monitores emiten en tiempo real, sin que un flujo interrumpa al otro: a medida
-que la Capa 3 marca \textit{targets} como satisfechos, los eventos aparecen
-encima del cursor sin alterar lo que el educador esté escribiendo.
+pagar el costo de arrancar la plataforma una vez por comando. Todas las
+notificaciones del \textit{daemon} viajan por un \texttt{NotificationSink}
+central, que por defecto las silencia: el TTY del REPL queda limpio y la
+vista del progreso pasa a ser \textit{pull} mediante \texttt{run dashboard} y
+\texttt{run feed}, que leen de la base de datos. Para que el educador sepa
+cuándo abrir las vistas, la barra inferior del REPL (\texttt{bottom\_toolbar}
+de \texttt{prompt\_toolkit}) muestra un \textit{badge} con la cantidad de
+hitos nuevos desde la última lectura del feed y con la cantidad de entornos
+activos.
 
 Para los momentos en que el educador no quiere mantener una terminal abierta
 durante toda la sesión, el modo \texttt{flexipwn daemon start --detach} lanza el
@@ -713,16 +726,45 @@ de las capas inferiores a actualizaciones de estado en la base de datos: cada
 \texttt{MonitorEvent} se persiste en la tabla \texttt{RunEvent} para servir como
 bitácora del ejercicio, y cada cambio que la Capa 3 reporta a través de
 \texttt{on\_update} se refleja en los registros de \texttt{TargetResult} y
-\texttt{ExerciseRun} correspondientes. Existe una \textit{race condition}
+\texttt{ExerciseRun} correspondientes. Esos mismos cambios se emiten además
+como \texttt{Notification} hacia el \texttt{NotificationSink}, único punto por
+el que el \textit{daemon} decide entre escribir al TTY del educador o silenciar
+la notificación dejándola en log y, vía DB, en el \texttt{feed} persistente.
+Existe una \textit{race condition}
 conocida entre el motor de evaluación y la observación pasiva, que el
 \texttt{DaemonLoop} maneja explícitamente con una regla de precedencia: los
 estados terminales son irreversibles. Si un contenedor desaparece
 inesperadamente, por ejemplo, y un \textit{poll} en vuelo reporta
 \texttt{on\_stopped} pero el motor ya marcó el \textit{run} como completado, el
 \textit{loop} preserva el estado terminal y no lo sobrescribe con
-\texttt{stopped}. Al arrancar, el \textit{daemon} también ejecuta
-\texttt{cleanup\_all} en el \textit{provider} de Capa 1 para limpiar el estado
-persistido con los recursos reales de Docker.
+\texttt{stopped}.
+
+\subsection{Vistas del educador: \texttt{dashboard} y \texttt{feed}}
+
+Cuando el \textit{daemon} sostiene varios \textit{runs} en paralelo, los hitos
+de progreso de cada uno mezclados sobre el cursor del REPL dejan de ser una
+forma útil de seguimiento. Por eso la Capa 4 expone dos vistas agregadas que
+el educador puede abrir bajo demanda desde la CLI clásica o desde el REPL del
+\textit{daemon}, ambas alimentadas por la base de datos y no por el buffer en
+memoria del \texttt{NotificationSink}.
+
+\texttt{run dashboard} muestra una tabla con una fila por entorno activo, con
+\textit{env\_id}, escenario, participante, estado, objetivos cumplidos sobre
+el total, porcentaje y descripción del último hito con su \textit{timestamp}.
+Reabrirla en cualquier momento refleja el último estado persistido, sin
+depender de que la sesión actual del REPL haya recibido todos los eventos. El
+modificador \texttt{--all} incorpora además los \textit{runs} terminados
+durante el día.
+
+\texttt{run feed} es una cronología de los hitos satisfechos de todos los
+entornos activos, ordenados por \textit{timestamp} y con su descripción
+textual. Está construida a partir del campo \texttt{matched\_at} de cada
+\texttt{TargetResult} y de las transiciones terminales del \textit{run}. Como
+las notificaciones están silenciadas por defecto en el sink, el \textit{feed}
+es la vista canónica del progreso y es persistente: los hitos quedan
+disponibles aunque el \textit{run} se cierre o el \textit{daemon} se
+reinicie. Por defecto muestra los hitos del día, pero con
+\texttt{--all-history} recorre todo el historial almacenado.
 
 \subsection{Persistencia y ciclo de vida de un \textit{run}}
 \begin{sloppypar}
@@ -784,4 +826,14 @@ del atacante asignado a su \textit{run}. El comando es idempotente respecto a
 los \textit{runs} ya creados: si se invoca con un archivo ampliado a mitad de
 sesión, no duplica entornos sino que agrega los nuevos a los que ya están
 corriendo bajo el mismo \textit{daemon}.
+
+Si la materialización de un entorno falla en mitad del \textit{batch} (por
+ejemplo, la imagen no existe localmente o el puerto SSH asignado ya está
+tomado), el comando captura la excepción como \texttt{ProvisionError} para ese
+entorno particular, sigue procesando los restantes y al final reporta los
+éxitos junto con la lista de entornos fallidos y la razón asociada a cada uno.
+El CSV de credenciales solo contiene las filas de los entornos efectivamente
+creados. Los fallidos quedan documentados en el resumen del \textit{batch}
+para que el educador pueda decidir si reintenta esos casos puntuales sin
+tener que descartar y rehacer el lote completo.
 \end{sloppypar}
