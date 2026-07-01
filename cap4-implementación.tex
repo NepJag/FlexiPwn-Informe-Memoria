@@ -348,8 +348,17 @@ lo que estaba creado en el momento del fallo. En definitiva,
 \texttt{create()} puede terminar de dos formas: o retorna un
 \texttt{Environment} completamente funcional, o lanza la excepción original con
 todos los recursos parciales eliminados.
-% TODO figura: máquina de estados del run (pending / running /
-% stopping / resetting / completed / failed / timeout / stopped)
+
+% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Máquina de estados de un \textit{run}:
+    \texttt{pending}, \texttt{running}, \texttt{stopping},
+    \texttt{resetting}, \texttt{completed}, \texttt{failed},
+    \texttt{timeout} y \texttt{stopped}.}
+    \label{fig:run-estados}
+\end{figure}
 
 \subsection{Estrategia de \textit{baseline} para los monitores}
 \label{sec:capa1-baseline}
@@ -497,8 +506,17 @@ del binario deniega que el \textit{sidecar} reciba las señales de
 el \textit{teardown}. Al ejecutarlo desde una ruta que no coincide con el
 perfil, el proceso corre sin limitaciones y la destrucción del entorno puede
 terminarlo de forma limpia.
-% TODO figura: pipeline tcpdump -> traffic.txt (bind mount, netns
-% del vulnerable) -> parser -> network_payload / network_connection
+
+% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Pipeline de captura de red: \texttt{tcpdump}
+    escribe \texttt{traffic.txt} en un \textit{bind mount} desde el
+    \textit{netns} del vulnerable, y el \textit{parser} emite
+    \texttt{network\_payload} y \texttt{network\_connection}.}
+    \label{fig:pipeline-red}
+\end{figure}
 
 El uso de \texttt{-n} desactiva la resolución de nombres, forzando IPs numéricas
 en el output y evitando que el parser del monitor falle ante hostnames como
@@ -768,9 +786,19 @@ inesperadamente, por ejemplo, y un \textit{poll} en vuelo reporta
 \texttt{on\_stopped} pero el motor ya marcó el \textit{run} como completado, el
 \textit{loop} preserva el estado terminal y no lo sobrescribe con
 \texttt{stopped}.
-% TODO figura: componentes DaemonLoop -> SuperMonitor
-% (ThreadPoolExecutor) -> N MonitorOrchestrator -> 4 monitores;
-% flujo MonitorEvent -> EvaluationEngine -> NotificationSink / DB
+
+% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Componentes del \textit{daemon}:
+    \texttt{DaemonLoop} y \texttt{SuperMonitor} (con su
+    \textit{ThreadPoolExecutor}) coordinan $N$ \texttt{MonitorOrchestrator}
+    y los cuatro monitores; el flujo de \texttt{MonitorEvent} pasa por el
+    \texttt{EvaluationEngine} hacia el \texttt{NotificationSink} y la base de
+    datos.}
+    \label{fig:componentes-daemon}
+\end{figure}
 
 \subsection{Vistas del educador: \texttt{dashboard} y \texttt{feed}}
 
@@ -798,7 +826,15 @@ es la vista canónica del progreso y es persistente: los hitos quedan
 disponibles aunque el \textit{run} se cierre o el \textit{daemon} se
 reinicie. Por defecto muestra los hitos del día, pero con \texttt{--all}
 recorre todo el historial almacenado.
-% TODO captura: dashboard + feed + badge del REPL
+
+% PLACEHOLDER: reemplazar por una captura real (ver Paso 4).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Captura del \texttt{dashboard}, el \texttt{feed} y
+    el \textit{badge} del REPL.}
+    \label{fig:dashboard}
+\end{figure}
 
 \subsection{Persistencia y ciclo de vida de un \textit{run}}
 \begin{sloppypar}
