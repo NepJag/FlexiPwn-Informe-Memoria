@@ -321,8 +321,15 @@ En tercer lugar, las pruebas de aislamiento tal que estudiante no pueda resolver
 los \textit{runs} de otro, y la exposición controlada a la red del DCC quedan
 como verificaciones pendientes en el servidor del CLCERT.
 
-% TODO: añadir mención a nuevos monitores, providers, targets, escenarios y entre eso 
-% (providers probablemente) eBPF.
+Por último, más allá de la validación, la arquitectura de capas deja abiertas
+líneas de crecimiento del sistema. Nuevos escenarios, \textit{targets} y
+monitores amplían la cobertura de categorías de ejercicio sin modificar el
+núcleo de evaluación, y nuevos \textit{providers} de aislamiento, como Podman
+o algún tipo de virtualización, permiten sostener la plataforma sobre otras
+tecnologías. Entre estas líneas destaca el monitoreo basado en
+eBPF~\cite{ebpf}, que habilitaría una observación a nivel de \textit{kernel} más
+fina y más difícil de eludir que la detección actual. Su exploración excedió el
+tiempo disponible y se retoma en las conclusiones.
 
 \section{Discusión}
 

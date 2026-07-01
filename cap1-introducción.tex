@@ -220,6 +220,19 @@ entregada:
     pobres en contexto y sin criterios claros rendían resultados de bajo valor.
 \end{itemize}
 
+Surgió un momento interesante en la etapa final del trabajo, al estudiar una
+prueba de concepto de escape de contenedores para comprender el funcionamiento
+de este tipo de exploit y respaldar el análisis de contención del entorno. Al
+tratar un tema sensible, las primeras consultas sobre una prueba de concepto
+realista del CVE en cuestión~\cite{cve-runc-2025, poc-cve-2025-31133} fueron
+rechazadas por las políticas de uso de la herramienta. Tras solicitar al equipo
+de Anthropic un acceso ampliado y explicar su propósito educativo dentro de este
+trabajo de ciberseguridad, la consulta pudo retomarse. A partir de ahí, el
+modelo resultó de gran ayuda para seguir el exploit paso a paso, consiguiendo
+compararlo con otros CVE relacionados, distinguiendo, por ejemplo, los que se
+ejecutan desde el interior del contenedor de los que afectan directamente al
+\textit{host}.
+
 Si el trabajo se reiniciara, se cambiarían algunas formas del uso de la
 inteligencia artificial. Se establecería antes una rutina de revisión y
 verificación sistemática, para no depender de que un resultado ``parezca''
