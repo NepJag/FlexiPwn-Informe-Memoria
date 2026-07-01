@@ -41,12 +41,12 @@ activado.
 
 En este punto conviene separar los dos planos de la validación. El primero, en
 que los escenarios funcionan y disparan sus objetivos correctamente, constituye
-el criterio de evaluación propuesto en el informe del curso de introducción al
-trabajo de título, y se cubre con los tres casos descritos a continuación y con
-el conjunto de \textit{tests}. El segundo, relacionado a un uso realista de
-un aula completa, es una extensión más allá de lo comprometido como evaluación.
-Se aborda parcialmente mediante pruebas unitarias y comprobaciones de la configuración
-de seguridad, y se reconoce explícitamente como trabajo pendiente.
+el criterio de evaluación propuesto en el informe del curso de Introducción al
+Trabajo de Título, y se cubre con los tres casos descritos a continuación y con
+el conjunto de \textit{tests}. El segundo, relacionado a un uso realista de un
+aula completa, es una extensión más allá de lo comprometido como evaluación. Se
+aborda parcialmente mediante pruebas unitarias y comprobaciones de la
+configuración de seguridad, y se reconoce explícitamente como trabajo pendiente.
 
 \section{Cobertura del criterio de éxito}
 
@@ -93,8 +93,8 @@ Inyección de comandos  & web    & Red, FS         &
 \end{tabular}
 \end{table}
 
-Entre los tres escenarios se ejercitan los cuatro monitores y los principales
-tipos de objetivo del motor. Con ello se satisface el criterio
+Entre los tres escenarios se ejercitaron los cuatro monitores y los principales
+tipos de objetivo del motor. Con ello se satisfizo el criterio
 declarado de cubrir al menos tres categorías con detección automática basada en
 estado, sin que el estudiante deba enviar una \textit{flag} ni el educador deba
 corregir manualmente.
@@ -233,7 +233,7 @@ web del escenario de inyección SQL, se envía una consulta SQL directamente al
 puerto 3306 del contenedor vulnerable desde el atacante.
 
 El resultado del 26 de junio de 2026 y registrado en el runbook de
-pruebas confirma este comportamiento. MySQL rechazó
+pruebas confirmó este comportamiento. MySQL rechazó
 la conexión del atacante, respondió que el \textit{host} no tenía permiso para
 conectarse, por lo que la consulta nunca llegó a ejecutarse. Sin embargo, los
 bytes de la sentencia \texttt{SELECT} ya habían viajado por TCP hasta el puerto
@@ -244,7 +244,7 @@ resuelto, porque la condición \texttt{all} exige además los objetivos de
 \textit{log}, que sí requieren el flujo por la aplicación, y la respuesta con la
 información de una tabla ``sensible'', que en este experimento no existió.
 
-En resumen, lo que ocurre es lo siguiente: el detector de red
+En resumen, lo que ocurrió fue lo siguiente: el detector de red
 reconoce un \textit{patrón} en el tráfico, no la ejecución exitosa del ataque.
 Se podría argumentar que en ese sentido, el sistema se comporta como una regla
 de detección tipo SIEM o SIGMA, que inspecciona la presencia de indicadores en
@@ -259,12 +259,12 @@ erróneas.
 
 La afirmación de que el modo \textit{rootless} contiene un eventual escape de
 contenedor, hecha en el Capítulo~\ref{sec:implementacion}, se respalda con un
-chequeo de configuración ejecutado sobre la infraestructura del CLCERT el 18 de junio
-de 2026. El \textit{script} \texttt{scripts/containment\_check.sh} verifica, de
-forma estrictamente \textit{read-only}, si los vectores asociados a los escapes
-recientes de \texttt{runc} (CVE-2025-31133, CVE-2025-52565 y CVE-2025-52881) y a
-la vulnerabilidad Copy Fail (CVE-2026-31431) están cerrados en la configuración
-desplegada.
+chequeo de configuración ejecutado sobre la infraestructura del CLCERT el 18 de
+junio de 2026. El \textit{script} \texttt{scripts/containment\_check.sh}
+verifica, de forma estrictamente \textit{read-only}, si los vectores asociados a
+los escapes recientes de \texttt{runc} (CVE-2025-31133, CVE-2025-52565 y
+CVE-2025-52881) y a la vulnerabilidad Copy Fail (CVE-2026-31431) están cerrados
+en la configuración desplegada.
 
 El chequeo reportó que esos vectores no son explotables desde el contenedor en
 la configuración verificada. El modo \textit{rootless} encapsula el
@@ -284,14 +284,14 @@ sino que consulta el estado del runtime y de los controles del \textit{kernel}.
 
 \subsection{Autoprueba de acceso remoto}
 
-Para validar el despliegue accesible a distancia, se realizó una
-autoprueba con el \textit{script} \texttt{scripts/test\_remote\_access.py}. La
-prueba levanta un entorno publicando el SSH del contenedor atacante únicamente
-en IPs concretas, como la dirección de la red \textit{overlay} de
-\texttt{netbird} \cite{netbird} para acceso remoto, en lugar de exponerlo en todas las
-interfaces. Con el entorno activo,
-se logró establecer la conexión desde otro dispositivo, simulando el rol de 
-un estudiante que accede al contenedor atacante a distancia.
+Para validar el despliegue accesible a distancia, se realizó una autoprueba con
+el \textit{script} \texttt{scripts/test\_remote\_access.py}. La prueba levantó
+un entorno publicando el SSH del contenedor atacante únicamente en IPs
+concretas, como la dirección de la red \textit{overlay} de \texttt{netbird}
+\cite{netbird} para acceso remoto, en lugar de exponerlo en todas las
+interfaces. Con el entorno activo, se logró establecer la conexión desde otro
+dispositivo, simulando el rol de un estudiante que accede al contenedor atacante
+a distancia.
 
 Hay que notar que se trató de una prueba que no involucró estudiantes reales. 
 El experimento valida que el mecanismo de

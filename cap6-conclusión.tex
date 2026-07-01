@@ -4,29 +4,30 @@ El objetivo de esta memoria fue desarrollar FlexiPwn, una plataforma educativa
 autohospedable para la práctica de ciberseguridad ofensiva que valida el
 progreso del estudiante a partir del estado del sistema comprometido, sin
 recurrir a \textit{flags} manuales. Frente a los objetivos propuestos en la
-introducción, se cumplen en su mayoría. Se construye una arquitectura modular de
-cuatro capas multi-entorno, con responsabilidades delimitadas y agnóstica al
-sustrato de aislamiento. Se ofrece una configuración declarativa en archivos
+introducción, se cumplieron en su mayoría. Se construyó una arquitectura modular
+de cuatro capas multi-entorno, con responsabilidades delimitadas y agnóstica al
+sustrato de aislamiento. Se ofreció una configuración declarativa en archivos
 YAML con la que un educador describe objetivos y condiciones de validación. Se
-implementa un motor de validación automática basado en el estado del sistema. 
-Y se proveen herramientas de seguimiento y administración a través de interfaces 
-de línea de comandos, un REPL interactivo y un \textit{daemon} de seguimiento. 
-El objetivo de poner la plataforma a disposición del CLCERT queda parcial: la 
-herramienta se entrega y se prueba su resistencia sobre la infraestructura del 
-laboratorio, pero sin un curso ni usuarios reales que la ejerciten.
+implementó un motor de validación automática basado en el estado del sistema. Y
+se proveyeron herramientas de seguimiento y administración a través de
+interfaces de línea de comandos, un REPL interactivo y un \textit{daemon} de
+seguimiento. El objetivo de poner la plataforma a disposición del CLCERT quedó
+parcial: la herramienta se entregó y se probó su resistencia sobre la
+infraestructura del laboratorio, pero sin un curso ni usuarios reales que la
+ejerciten.
 
 A lo largo del trabajo se enfrentaron varios desafíos que dejaron aprendizajes
 concretos. Crear un sistema de detección de exploits no es sencillo: existen
 muchas herramientas, pero lo difícil es definir qué observar, porque pueden
 darse falsos positivos. Además, según cómo se observe una ejecución, una
-consulta u otra acción, se podría caer en modificar la máquina misma. Esto último 
-se intentó evitar al máximo bajo la idea de agnosticismo entre capas. También generó
-dificultades la integración de los distintos conocimientos de la carrera, 
-como redes, bases de datos, desarrollo de software y ciberseguridad. Al principio 
-el proyecto podía abrumar, pero los pasos semana a semana disminuían esa sensación. 
-En ese sentido, fue muy grato tener reuniones semanales con el grupo del CLCERT: 
-daban un sentimiento de compañía en este último proyecto universitario e 
-impulsaban a entregar avances al laboratorio cada semana.
+consulta u otra acción, se podría caer en modificar la máquina misma. Esto
+último se intentó evitar al máximo bajo la idea de agnosticismo entre capas.
+También generó dificultades la integración de los distintos conocimientos de la
+carrera, como redes, bases de datos, desarrollo de software y ciberseguridad. Al
+principio el proyecto podía abrumar, pero los pasos semana a semana disminuían
+esa sensación. En ese sentido, fue muy grato tener reuniones semanales con el
+grupo del CLCERT: daban un sentimiento de compañía en este último proyecto
+universitario e impulsaban a entregar avances al laboratorio cada semana.
 
 La inteligencia artificial se encuentra hoy en un buen punto para el desarrollo
 de software, y es impresionante lo bien que funciona si se usa correctamente. Un
@@ -43,7 +44,7 @@ esa formación, distinguiendo a un desarrollador ``moderno'' de los llamados
 
 El sistema mantiene limitaciones que conviene reconocer. El monitoreo opera por
 sondeo (\textit{polling}), de modo que introduce latencia y puede no observar
-acciones de breve duración. Además, el monitor de red, reconoce patrones en el
+acciones de breve duración. Además, el monitor de red reconoce patrones en el
 tráfico y no la ejecución exitosa de un ataque, lo que abre la puerta a falsos
 positivos. Sumado a esto, la plataforma aún no se valida en un aula real con
 usuarios, por lo que su eficacia pedagógica en uso cotidiano queda por

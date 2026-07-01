@@ -10,16 +10,16 @@ Las decisiones de \textit{stack} tecnológico de FlexiPwn fueron tomadas en base
 a un contexto particular: el sistema debe ser autohospedable en hardware de
 recursos limitados, y suficientemente simple para que un educador no tenga que
 invertir demasiado tiempo configurando la infraestructura del sistema, para
-pueda operar y extender los escenarios de forma rápida. Esta sección describe
+que pueda operar y extender los escenarios de forma rápida. Esta sección describe
 los componentes seleccionados, organizados según las cuatro capas de la
 arquitectura. La justificación profunda de la tecnología de virtualización se
 desarrolla por separado en la Sección~\ref{sec:virtualizacion}.
 
 \subsection{Lenguaje y gestión de dependencias}
 
-Python 3.12 es el lenguaje principal. La elección se sostiene en que es el
-lenguaje que más se domina y que coincide con tener un gran ecosistema de
-herramientas de infraestructura y orquestación, y de los lenguajes más
+Python 3.12 es el lenguaje principal. La elección se sostuvo en que era el
+lenguaje que más se dominaba y que coincidía con tener un gran ecosistema de
+herramientas de infraestructura y orquestación, y con ser de los lenguajes más
 utilizados en ciberseguridad \cite{hackthebox-cybersecurity-languages}.
 
 La gestión de dependencias y entornos virtuales se realiza con \texttt{uv}
@@ -56,8 +56,8 @@ implementación se describe en detalle más adelante en este capítulo.
 
 Los escenarios se describen en archivos YAML parseados con \texttt{PyYAML} y
 validados con \texttt{Pydantic v2}. La separación entre \textit{parsing}
-(PyYAML) y validación (Pydantic) es intencional: los errores de configuración se
-detectan con mensajes claros al cargar el escenario, no durante la ejecución.
+(PyYAML) y validación (Pydantic) fue intencional: los errores de configuración
+se detectan con mensajes claros al cargar el escenario, no durante la ejecución.
 Pydantic v2 fue elegido por su integración nativa con SQLModel y por el
 rendimiento de su núcleo en Rust.
 
@@ -234,7 +234,7 @@ Portabilidad (15\%)    & 5 / 0.75 & 4 / 0.60 & 4 / 0.60 & 2 / 0.30 \\
 FlexiPwn utiliza Docker \textit{rootless} como tecnología de virtualización
 principal, expuesto a través de la interfaz abstracta
 \texttt{EnvironmentProvider} descrita en el Capítulo~\ref{sec:diseño}. La
-decisión se apoya en los tres criterios de mayor peso. En \textbf{seguridad}, el
+decisión se apoyó en los tres criterios de mayor peso. En \textbf{seguridad}, el
 modo \textit{rootless} elimina el vector de escape hacia root en el
 \textit{host}, que es el riesgo más crítico en una plataforma con ejercicios de
 \textit{privilege escalation}; KVM ofrecería un aislamiento mayor, pero la
@@ -250,7 +250,7 @@ desarrollo dentro de los plazos del proyecto.
 Hay que notar que Podman \textit{rootless} obtuvo el puntaje ponderado más alto
 (4.45 frente a 4.15) y es arquitectónicamente más sólido al ser
 \textit{daemonless}. La razón para no elegirlo como \textit{backend} principal
-es pragmática: \texttt{podman-py} es funcional pero aún en desarrollo activo,
+fue pragmática: \texttt{podman-py} es funcional pero aún en desarrollo activo,
 con diferencias sutiles respecto a \texttt{docker-py} en operaciones de
 \textit{streaming} de logs y \textit{stats}, y la documentación y comunidad de
 \texttt{docker-py} es considerablemente mayor. En términos prácticos, ambas
@@ -528,7 +528,7 @@ archivo del host.
 
 \texttt{NetworkMonitor} lee el archivo \texttt{traffic.txt} de forma incremental
 en cada ciclo de polling, procesando el output de tcpdump como unidades de
-paquete completo en lugar de línea por línea. Esta decisión es necesaria porque
+paquete completo en lugar de línea por línea. Esta decisión fue necesaria porque
 el output de \texttt{tcpdump -A} en modo \texttt{-i any} mezcla bytes ASCII del
 payload con bytes binarios de los headers TCP/IP, y el carácter \texttt{0x0a}
 (LF) puede aparecer dentro de los headers, partiendo artificialmente el payload
