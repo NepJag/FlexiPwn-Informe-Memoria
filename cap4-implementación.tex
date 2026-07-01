@@ -293,16 +293,19 @@ actual.
 \subsection{Detección del socket Docker}
 
 \texttt{DockerRootlessProvider} resuelve la ubicación del socket Docker al
-construirse, sin requerir configuración explícita en la mayoría de los casos. La
-detección sigue tres pasos en orden de prioridad: primero respeta la variable de
-entorno \texttt{DOCKER\_HOST} si está definida, permitiendo que el educador
-apunte a un socket personalizado. De no presentarla, busca
-\texttt{\$XDG\_RUNTIME\_DIR/docker.sock}, que es la ubicación estándar en
-sistemas Linux modernos, y como último recurso intenta
-\texttt{/run/user/\{uid\}/docker.sock}, la ruta por defecto de la instalación
-\textit{rootless} de Docker. Si ninguna existe, se levanta un
-\texttt{SocketNotFoundError} con un mensaje que indica al usuario las rutas que
-se intentaron, evitando errores opacos del SDK.
+construirse, sin requerir configuración explícita en la mayoría de los casos. Si
+la configuración fija un \texttt{docker\_socket} explícito, se usa esa ruta y la
+detección automática no se ejecuta. En su ausencia, la detección recorre cuatro
+candidatos en orden de prioridad: primero respeta la variable de entorno
+\texttt{DOCKER\_HOST} si está definida, permitiendo que el educador apunte a un
+socket personalizado; de no presentarla, busca
+\texttt{\$XDG\_RUNTIME\_DIR/docker.sock}, ubicación estándar en sistemas Linux
+modernos; luego \texttt{/run/user/\{uid\}/docker.sock}, la ruta por defecto de
+la instalación \textit{rootless} de Docker; y por último
+\texttt{\textasciitilde/.docker/run/docker.sock}, el socket de Docker Desktop en
+macOS, que habilita el desarrollo en esa plataforma. Si ninguno existe, se
+levanta un \texttt{SocketNotFoundError} con un mensaje que indica al usuario las
+rutas que se intentaron, evitando errores opacos del SDK.
 
 \subsection{Identificación y etiquetado de recursos}
 \begin{sloppypar}
@@ -329,20 +332,24 @@ afectar recursos ajenos a FlexiPwn.
 
 \subsection{Creación con \textit{rollback}}
 
-La operación \texttt{create()} levanta cuatro recursos sucesivamente: el
-directorio base de \textit{bind mounts}, las redes interna y externa, el
-contenedor vulnerable, el contenedor atacante y el \textit{sidecar} de captura
-de red. Un fallo a mitad de camino dejaría recursos huérfanos en Docker y
-archivos sin uso en el \textit{host}, lo que con el tiempo contaminaría el
+La operación \texttt{create()} levanta de forma sucesiva el directorio base de
+\textit{bind mounts}, las redes interna y externa, el contenedor vulnerable, el
+contenedor atacante y, cuando el escenario lo requiere, el \textit{sidecar} de
+captura de red. Un fallo a mitad de camino dejaría recursos huérfanos en Docker
+y archivos sin uso en el \textit{host}, lo que con el tiempo contaminaría el
 sistema y dificultaría el diagnóstico de posibles errores.
 
-Para evitarlo, el método mantiene un conjunto de banderas booleanas, una por
-tipo de recurso, que se activan a medida que cada paso completa con éxito.
-Cualquier excepción captura el flujo en un único bloque \texttt{except} que
-invoca \texttt{\_rollback}, encargado de deshacer exclusivamente lo que estaba
-creado en el momento del fallo. En definitiva, \texttt{create()} puede terminar
-de 2 formas: o retorna un \texttt{Environment} completamente funcional, o lanza
-la excepción original con todos los recursos parciales eliminados.
+Para evitarlo, el método mantiene un conjunto de banderas booleanas
+(\texttt{created\_dirs}, \texttt{created\_network}, \texttt{created\_vulnerable}
+y \texttt{created\_sniffer}) que se activan a medida que los pasos completan con
+éxito. Cualquier excepción captura el flujo en un único
+bloque \texttt{except} que invoca \texttt{\_rollback}, encargado de deshacer
+lo que estaba creado en el momento del fallo. En definitiva,
+\texttt{create()} puede terminar de dos formas: o retorna un
+\texttt{Environment} completamente funcional, o lanza la excepción original con
+todos los recursos parciales eliminados.
+% TODO figura: máquina de estados del run (pending / running /
+% stopping / resetting / completed / failed / timeout / stopped)
 
 \subsection{Estrategia de \textit{baseline} para los monitores}
 \label{sec:capa1-baseline}
@@ -482,6 +489,17 @@ namespace de red del sistema vulnerable.
     al que solo tiene acceso el proceso de FlexiPwn.
 \end{itemize}
 
+El binario \texttt{tcpdump} no se ejecuta desde su ruta original, sino que se
+copia a \texttt{/tmp/fpcap} y se lanza desde ahí. El motivo es un
+\textit{workaround} de AppArmor: el perfil del host asociado a la ruta estándar
+del binario deniega que el \textit{sidecar} reciba las señales de
+\texttt{rootlesskit}, lo que dejaría al \textit{sniffer} imposible de detener en
+el \textit{teardown}. Al ejecutarlo desde una ruta que no coincide con el
+perfil, el proceso corre sin limitaciones y la destrucción del entorno puede
+terminarlo de forma limpia.
+% TODO figura: pipeline tcpdump -> traffic.txt (bind mount, netns
+% del vulnerable) -> parser -> network_payload / network_connection
+
 El uso de \texttt{-n} desactiva la resolución de nombres, forzando IPs numéricas
 en el output y evitando que el parser del monitor falle ante hostnames como
 \texttt{localhost}. El flag \texttt{-l} activa el line-buffering de tcpdump,
@@ -586,8 +604,11 @@ Los tipos de target implementados en el estado actual del sistema son:
     comando.
 
     \item[\texttt{log\_pattern}] Opera sobre eventos del monitor de logs. Aplica
-    un diccionario de campo→regex sobre los campos de la entrada de log parseada
-    como JSON.
+    un diccionario de campo→regex sobre los campos de la entrada de log. Si la
+    línea se parseó como JSON, los campos se buscan en la entrada estructurada.
+    En cambio, si el campo declarado es \texttt{raw\_line}, la regex se aplica
+    sobre el texto plano de la línea. Este segundo modo es el que usan los
+    escenarios MySQL, cuyo \texttt{general\_log} no es JSON.
 
     \item[\texttt{network\_payload}] Opera sobre eventos
     \texttt{network\_payload} del \texttt{NetworkMonitor}. Aplica un diccionario
@@ -653,6 +674,14 @@ código de color para los estados (\texttt{running}, \texttt{completed},
 para CLI en Python y reduce significativamente el código que la plataforma debe
 escribir para entregar una experiencia de terminal limpia.
 
+La CLI ofrece además un modo verboso para diagnóstico: la bandera global
+\texttt{--verbose} (o la variable de entorno \texttt{FLEXIPWN\_LOG}) eleva el
+\textit{logging} a nivel \texttt{DEBUG}, que recorre todo el flujo (creación de
+recursos en Capa 1, emisión de cada evento en Capa 2, decisión de \textit{match}
+del motor en Capa 3 y escrituras a la base en Capa 4) desde un único punto de
+configuración. El nivel por defecto es silencioso, de modo que el modo verboso
+no afecta la operación normal ni las pruebas.
+
 \subsection{Modelo de \textit{daemon}: \textit{foreground}, \textit{detach} y \textit{attach}}
 
 \texttt{flexipwn daemon start} arranca el proceso \textit{daemon}. En su modo
@@ -663,8 +692,9 @@ puede ejecutar los mismos sub-comandos que ofrece la CLI clásica
 pagar el costo de arrancar la plataforma una vez por comando. Todas las
 notificaciones del \textit{daemon} viajan por un \texttt{NotificationSink}
 central, que por defecto las silencia: el TTY del REPL queda limpio y la
-vista del progreso pasa a ser \textit{pull} mediante \texttt{run dashboard} y
-\texttt{run feed}, que leen de la base de datos. Para que el educador sepa
+vista del progreso pasa a ser \textit{pull} mediante los comandos
+\texttt{dashboard} y \texttt{feed} del propio REPL, que leen de la base de
+datos. Para que el educador sepa
 cuándo abrir las vistas, la barra inferior del REPL (\texttt{bottom\_toolbar}
 de \texttt{prompt\_toolkit}) muestra un \textit{badge} con la cantidad de
 hitos nuevos desde la última lectura del feed y con la cantidad de entornos
@@ -738,17 +768,20 @@ inesperadamente, por ejemplo, y un \textit{poll} en vuelo reporta
 \texttt{on\_stopped} pero el motor ya marcó el \textit{run} como completado, el
 \textit{loop} preserva el estado terminal y no lo sobrescribe con
 \texttt{stopped}.
+% TODO figura: componentes DaemonLoop -> SuperMonitor
+% (ThreadPoolExecutor) -> N MonitorOrchestrator -> 4 monitores;
+% flujo MonitorEvent -> EvaluationEngine -> NotificationSink / DB
 
 \subsection{Vistas del educador: \texttt{dashboard} y \texttt{feed}}
 
 Cuando el \textit{daemon} sostiene varios \textit{runs} en paralelo, los hitos
 de progreso de cada uno mezclados sobre el cursor del REPL dejan de ser una
-forma útil de seguimiento. Por eso la Capa 4 expone dos vistas agregadas que
-el educador puede abrir bajo demanda desde la CLI clásica o desde el REPL del
-\textit{daemon}, ambas alimentadas por la base de datos y no por el buffer en
+forma útil de seguimiento. Por eso el REPL del \textit{daemon} expone dos vistas
+agregadas que el educador abre bajo demanda con los comandos \texttt{dashboard}
+y \texttt{feed}, ambas alimentadas por la base de datos y no por el buffer en
 memoria del \texttt{NotificationSink}.
 
-\texttt{run dashboard} muestra una tabla con una fila por entorno activo, con
+\texttt{dashboard} muestra una tabla con una fila por entorno activo, con
 \textit{env\_id}, escenario, participante, estado, objetivos cumplidos sobre
 el total, porcentaje y descripción del último hito con su \textit{timestamp}.
 Reabrirla en cualquier momento refleja el último estado persistido, sin
@@ -756,15 +789,16 @@ depender de que la sesión actual del REPL haya recibido todos los eventos. El
 modificador \texttt{--all} incorpora además los \textit{runs} terminados
 durante el día.
 
-\texttt{run feed} es una cronología de los hitos satisfechos de todos los
+\texttt{feed} es una cronología de los hitos satisfechos de todos los
 entornos activos, ordenados por \textit{timestamp} y con su descripción
 textual. Está construida a partir del campo \texttt{matched\_at} de cada
 \texttt{TargetResult} y de las transiciones terminales del \textit{run}. Como
 las notificaciones están silenciadas por defecto en el sink, el \textit{feed}
 es la vista canónica del progreso y es persistente: los hitos quedan
 disponibles aunque el \textit{run} se cierre o el \textit{daemon} se
-reinicie. Por defecto muestra los hitos del día, pero con
-\texttt{--all-history} recorre todo el historial almacenado.
+reinicie. Por defecto muestra los hitos del día, pero con \texttt{--all}
+recorre todo el historial almacenado.
+% TODO captura: dashboard + feed + badge del REPL
 
 \subsection{Persistencia y ciclo de vida de un \textit{run}}
 \begin{sloppypar}
@@ -795,45 +829,109 @@ contenedores actuales y los recrea con un \texttt{env\_id} nuevo, asociándolo a
 mismo \texttt{ExerciseRun} y al mismo participante en la base de datos: los
 \texttt{TargetResult} del intento previo se marcan con un \texttt{reset\_at} en
 lugar de borrarse, lo que permite al estudiante reintentar el escenario
-manteniendo trazable el historial de intentos sucesivos sobre el mismo ejercicio.
+manteniendo trazable el historial de intentos sucesivos sobre el mismo
+ejercicio.
+\begin{sloppypar}
+El SSH del contenedor atacante no necesariamente se publica en todas las
+interfaces del \textit{host}. La configuración \texttt{attacker\_bind\_ips}
+(ajustable por entorno con \texttt{FLEXIPWN\_ATTACKER\_BIND\_IPS}) restringe la
+publicación del puerto SSH a una lista de IPs concretas: por ejemplo, la IP
+interna del laboratorio y/o la \textit{overlay} de acceso remoto. Su valor por
+defecto es \texttt{None}, que publica en todas las interfaces y es cómodo para
+desarrollo local.
+\end{sloppypar}
+
+El despliegue es robusto frente a fallos parciales y \textit{race
+conditions}. Antes de crear contenedores, \texttt{run start} rechaza un segundo
+\textit{run} activo para el mismo par escenario-participante, evitando dejar un
+entorno huérfano que luego choque con la restricción de unicidad de la base. Si
+el entorno se materializa pero el registro del \textit{run} en la base falla, el
+proveedor destruye los recursos recién creados y borra la fila pendiente, de
+modo que no quedan residuos. Además, \texttt{scenario validate} permite
+verificar que un YAML de escenario es válido sin persistirlo, separando el
+chequeo de la carga.
+
+Sobre los \textit{timestamps} que ya se persisten, sin schema adicional,
+\texttt{run show} y la vista \texttt{dashboard} derivan estadísticas de tiempo
+del \textit{run}: la duración total y, por hito, el momento en que cada objetivo
+se satisfizo (campo \texttt{matched\_at}) junto con el \textit{delta} respecto
+al hito anterior. Los hitos se ordenan cronológicamente por \texttt{matched\_at}
+porque el estudiante puede cumplir los objetivos en cualquier orden.
 
 \subsection{Credenciales de los participantes}
 
-\texttt{participant add} genera un nombre de usuario del tipo
-\texttt{student-XXXXXX} (un prefijo fijo y seis caracteres hexadecimales
-derivados de \texttt{secrets.token\_hex(3)}) y una contraseña en texto plano
-usando \texttt{secrets.token\_urlsafe(12)}. La contraseña en claro se muestra al
-educador una única vez al crearlo, y solo se persiste su
-\textit{hash} \texttt{bcrypt} con \textit{salt} aleatorio. Si el estudiante
-pierde su clave, \texttt{participant reset-password} genera una nueva, la
-muestra al educador y reemplaza el \textit{hash} en la base, es decir, nunca se recupera
-la contraseña original. Esta contraseña se usa para que el estudiante acceda por
-SSH al contenedor atacante de su entorno y, desde allí, ataque al contenedor
-vulnerable según lo disponga el escenario. El modelo descrito en el Capítulo~\ref{sec:diseño} mantiene al
+El sistema maneja dos contraseñas con propósitos distintos para cada estudiante.
+La primera es la contraseña del participante: \texttt{participant add} genera un
+nombre de usuario del tipo \texttt{student-XXXXXX} (un prefijo fijo y seis
+caracteres hexadecimales derivados de \texttt{secrets.token\_hex(3)}) y una
+contraseña en texto plano usando \texttt{secrets.token\_urlsafe(12)}. La
+contraseña en claro se muestra al educador una única vez al crearlo y solo se
+persiste su \textit{hash} \texttt{bcrypt} con \textit{salt} aleatorio. Si el
+estudiante la pierde, \texttt{participant reset-password} genera una nueva, la
+muestra al educador y reemplaza el \textit{hash} en la base, de modo que nunca
+se recupera la original.
+
+La segunda es la contraseña de acceso SSH, que es la que el estudiante usa para
+conectarse al contenedor atacante de su entorno y, desde allí, atacar al
+vulnerable según lo disponga el escenario. Esta contraseña es por \textit{run}:
+cuando el \textit{daemon} aprovisiona el atacante, genera una clave propia con
+\texttt{secrets.token\_urlsafe(12)}, configura con ella la cuenta de
+\textit{login} del contenedor y la persiste junto al \textit{run}. La contraseña
+del participante (el \textit{hash} \texttt{bcrypt}) no interviene en el flujo de
+acceso SSH. El modelo descrito en el Capítulo~\ref{sec:diseño} mantiene al
 estudiante fuera del \textit{host} en todo momento.
+
+\subsection{Visor de objetivos y pistas del estudiante}
+
+Una vez dentro del contenedor atacante, el estudiante tiene acceso al comando
+\texttt{flexipwn}, que muestra los objetivos del escenario y sus pistas junto al
+estado de cada uno (cumplido o pendiente). El \textit{daemon} es el único que
+conoce a la vez la descripción del escenario y el progreso de los objetivos, así
+que renderiza ese estado a texto plano y lo escribe en el atacante a través del
+contrato \texttt{exec\_run} del proveedor. El comando \texttt{flexipwn} de la
+imagen solo lee ese archivo, sin lógica propia. El contenedor vulnerable nunca
+se toca: el atacante es la única sesión que la plataforma aprovisiona para el
+estudiante y funciona como su propio \texttt{feed}.
+
+\subsection{Limpieza del laboratorio}
+
+Para mantener el laboratorio operable entre clases, la capa administración
+ofrece comandos de limpieza. \texttt{scenario remove} elimina un escenario, con
+un \textit{guard} que rechaza la operación si tiene \textit{runs} activos
+asociados para no dejar entornos sin escenario de referencia. Para los reinicios
+completos existen \texttt{scenario reset-all} y \texttt{participant reset-all},
+que borran en bloque todos los escenarios o todos los participantes
+respectivamente. Al ser destructivos, su confirmación no se puede saltar con una
+bandera: el educador debe escribir literalmente \texttt{BORRAR}.
 
 \subsection{Asignación masiva con \texttt{batch-start}}
 \begin{sloppypar}
-Para una sesión de con varios estudiantes, iniciar los \textit{runs} de a
-uno desde el REPL no escala. El comando \texttt{flexipwn run batch-start} recibe
-un archivo YAML con pares escenario/cantidad de \textit{runs} a
-crear, los materializa en paralelo aprovechando el mismo
-\texttt{ThreadPoolExecutor} del \texttt{SuperMonitor}, y opcionalmente vuelca un
-CSV con las columnas \texttt{scenario}, \texttt{username}, \texttt{env\_id},
-\texttt{ssh\_port} y \texttt{ssh\_password}. El educador puede distribuir la información del CSV a
-los participantes y cada estudiante recibe sus credenciales y el endpoint SSH
-del atacante asignado a su \textit{run}. El comando es idempotente respecto a
-los \textit{runs} ya creados: si se invoca con un archivo ampliado a mitad de
-sesión, no duplica entornos sino que agrega los nuevos a los que ya están
-corriendo bajo el mismo \textit{daemon}.
+Para una sesión con varios estudiantes, iniciar los \textit{runs} de a uno desde
+el REPL no escala. El comando \texttt{flexipwn run batch-start} recibe un
+archivo YAML con pares escenario/cantidad de \textit{runs} a crear y los
+materializa de forma secuencial, uno tras otro en un bucle. El despliegue es
+secuencial: el asignador de puertos SSH del atacante elige el primer puerto
+libre con una prueba de \textit{bind}, y dos \texttt{provider.create()}
+concurrentes podrían recibir el mismo puerto antes de que Docker lo ocupe, por
+lo que la secuencialidad es la que garantiza puertos disjuntos. El
+\texttt{ThreadPoolExecutor} del \texttt{SuperMonitor} solo paraleliza el
+\textit{polling} de monitoreo de los entornos ya creados, no su despliegue.
+Opcionalmente, se permite copiar los datos a un CSV que el educador puede
+distribuir a los participantes, de modo que cada estudiante recibe sus
+credenciales y el endpoint SSH del atacante asignado a su \textit{run}. Cada
+invocación crea un participante nuevo por cada entrada del YAML, así que volver
+a ejecutar el mismo archivo duplica los entornos en lugar de reutilizarlos.
 
 Si la materialización de un entorno falla en mitad del \textit{batch} (por
 ejemplo, la imagen no existe localmente o el puerto SSH asignado ya está
 tomado), el comando captura la excepción como \texttt{ProvisionError} para ese
 entorno particular, sigue procesando los restantes y al final reporta los
 éxitos junto con la lista de entornos fallidos y la razón asociada a cada uno.
-El CSV de credenciales solo contiene las filas de los entornos efectivamente
-creados. Los fallidos quedan documentados en el resumen del \textit{batch}
-para que el educador pueda decidir si reintenta esos casos puntuales sin
-tener que descartar y rehacer el lote completo.
+En el CSV se escriben siete columnas (\texttt{scenario}, \texttt{username},
+\texttt{env\_id}, \texttt{ssh\_port}, \texttt{ssh\_password}, \texttt{status} y
+\texttt{error}) e incluye tanto las filas de los entornos creados
+(\texttt{status} = \texttt{created}) como las de los fallidos (\texttt{status} =
+\texttt{failed}, con la razón en \texttt{error}), para que el educador pueda
+decidir si reintenta esos casos puntuales sin descartar y rehacer el lote
+completo.
 \end{sloppypar}

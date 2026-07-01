@@ -80,7 +80,8 @@ CTFd          & Sí  & Gratuito & Flags     & Sí \\
 RootTheBox    & Sí  & Gratuito & Flags     & Sí \\
 picoCTF       & Sí  & Gratuito & Flags     & Sí \\
 CyberRangeCZ  & Sí  & Gratuito & Multicriterio & Sí \\
-EDURange      & Sí  & Gratuito & Multicriterio & Sí \\ \hline
+EDURange      & Sí  & Gratuito & Multicriterio & Sí \\
+Tectonic      & Sí  & Gratuito & Multicriterio & Sí \\ \hline
 \textbf{Propuesta} & \textbf{Sí} & \textbf{Gratuito} &
 \textbf{Automática} & \textbf{Sí} \\
 \hline
@@ -93,17 +94,25 @@ La validación automática basada en estado ofrece ventajas pedagógicas
 significativas sobre los sistemas tradicionales de \textit{flags}. Mientras que
 las \textit{flags} solo indican si un estudiante alcanzó un objetivo final, un
 sistema de monitoreo de estado registra la evolución completa del ataque: qué
-servicios enumeró, qué vulnerabilidades intentó explotar, o qué archivos
+payloads envió por la red, qué vulnerabilidades intentó explotar, o qué archivos
 modificó. Esta trazabilidad permite a los educadores entender no solo si un
 estudiante tuvo éxito, sino \textbf{cómo} lo logró, detectar dificultades
 comunes y proporcionar retroalimentación más específica y formativa.
 
 \subsection{Contribución Técnica}
 
-Este trabajo contribuye al ecosistema de herramientas de detección de
-intrusiones \textit{open source}. Los sistemas comerciales de detección
-(IDS/IPS) suelen mantener sus reglas como propiedad intelectual cerrada,
-impidiendo que la comunidad los evalúe y mejore. Un proyecto educativo que
-implemente detección basada en reglas declarativas, con código completamente
-abierto y auditable, permite que investigadores y profesionales estudien,
-adapten y evolucionen estos enfoques.
+FlexiPwn no pretende ser una contribución mayor al ecosistema de sistemas de
+detección y prevención de intrusiones (IDS/IPS), pero sí aporta al ámbito
+\textit{open source} de herramientas educativas de detección. Los sistemas
+comerciales de detección suelen mantener sus reglas como propiedad intelectual
+cerrada, lo que dificulta que la comunidad las evalúe y mejore. Un proyecto
+educativo que implementa detección basada en reglas declarativas, con código
+completamente abierto y auditable, permite que investigadores y profesionales
+estudien, adapten y evolucionen estos enfoques.
+
+El enfoque de reglas declarativas de FlexiPwn se inspira en formatos abiertos de
+firmas como SIGMA \cite{sigma}, pensado para describir detecciones de forma
+portable sobre soluciones de gestión de eventos de seguridad (SIEM), que en el
+ámbito comercial suelen depender de lenguajes de reglas propietarios. FlexiPwn
+adopta esa idea de firmas legibles y abiertas, pero acotada a un alcance
+educativo y al monitoreo de estado de los escenarios.

@@ -1,4 +1,5 @@
 \chapter{Introducción}
+\label{sec:introduccion}
 
 Actualmente, la seguridad en el desarrollo de software es fundamental. Sin
 embargo, las malas prácticas y la falta de conocimiento siguen existiendo a
@@ -54,9 +55,9 @@ aprendizaje práctico de vulnerabilidades sin depender de validaciones manuales.
 \begin{enumerate}
     \item Diseñar e implementar una arquitectura modular que permita desplegar y
     gestionar múltiples entornos vulnerables simultáneamente mediante
-    tecnologías de virtualización, asegurando aislamiento y facilidad de
-    configuración.
-
+    tecnologías de virtualización o contenerización, asegurando aislamiento y
+    facilidad de configuración.
+    
     \item Desarrollar un sistema de configuración declarativa que permita
     definir las condiciones de éxito de un ejercicio mediante archivos YAML,
     haciendo que la plataforma sea accesible incluso a educadores sin
@@ -105,18 +106,25 @@ vulnerable, el mecanismo de detección y la lógica de evaluación es fundamenta
 para lograr flexibilidad y extensibilidad.
 
 \begin{description}
-    \item[Capa 1 — Sistemas virtualizados] Contiene en estado virtualizado todos
-    los sistemas y redes que componen el escenario de ataque. Se divide en dos
-    subcapas: la Capa 1a representa el sistema vulnerable objetivo, mientras que
-    la Capa 1b proporciona el entorno atacante desde el cual el estudiante
-    ejecuta el ataque.
+    \item[Capa 1 — Sistemas aislados] Contiene todos los sistemas y redes que
+    componen el escenario de ataque. La implementación actual los materializa
+    como contenedores, aunque la arquitectura es agnóstica al origen de
+    aislamiento y podría sostenerse a futuro sobre tecnologías de
+    virtualización. Se divide en dos subcapas: la Capa 1a, el sistema vulnerable
+    objetivo (el contenedor vulnerable), y la Capa 1b, el entorno atacante desde
+    el cual el estudiante ejecuta el ataque (el contenedor atacante).
 
     \item[Capa 2 — Monitoreo pasivo] Observa pasivamente el estado de los
-    contenedores con acceso de lectura externo al sistema. Su única
-    responsabilidad es generar un registro estructurado de eventos detectables:
-    modificaciones del sistema de archivos, procesos creados, entradas de log,
-    entre otros. Su comportamiento es análogo al de un SIEM (Security
-    Information and Event Management) dedicado al escenario de ataque.
+    contenedores con acceso de lectura externo al sistema. La única excepción a
+    esa lectura externa pura es la captura de tráfico de red, que requiere un
+    contenedor auxiliar (\textit{sidecar}) corriendo \textit{tcpdump}, por ser
+    la forma adecuada de capturar el tráfico del escenario. Los escenarios de
+    referencia asumen tráfico en claro, sin TLS, para que la captura resulte
+    legible. La responsabilidad de esta capa es solo generar un registro
+    estructurado de eventos detectables: modificaciones del sistema de archivos,
+    procesos creados, entradas de log y tráfico o conexiones de red, entre
+    otros. Su comportamiento es análogo al de un SIEM (Security Information and
+    Event Management) dedicado al escenario de ataque.
 
     \item[Capa 3 — Motor de evaluación] Consume los eventos generados por la
     Capa 2 y evalúa reglas declarativas definidas en archivos YAML que

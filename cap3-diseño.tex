@@ -214,8 +214,9 @@ anterior.
 class EnvironmentProvider(ABC):
     def create(self, scenario_id, participant_id, image,
                attacker_image=None, ports=None, attacker_ports=None,
-               log_paths=None, enable_network_capture=False,
-               capture_filter="", ...) -> Environment
+               timeout_seconds=1800, startup_delay=None,
+               enable_network_capture=False,
+               capture_filter="") -> Environment
     def destroy(self, env_id) -> None
     def reset(self, env_id) -> None
     def get_status(self, env_id) -> Environment
@@ -292,9 +293,15 @@ Generados por el monitor de procesos a partir de \texttt{container.top()}. El
     \texttt{details} son \texttt{pid}, \texttt{euid} (effective UID del
     proceso), \texttt{ppid}, \texttt{cmd} (comando completo), \texttt{lstart}
     (timestamp de inicio del proceso en formato \texttt{"Mon Oct 23 10:25:44
-    2023"}) y \texttt{process\_id} (hash SHA-256 truncado a 12 caracteres de la
-    combinación \texttt{pid:cmd}, que identifica unívocamente al proceso incluso
-    ante reutilización de PID).
+    2023"}), \texttt{ppid\_cmd} (comando del proceso padre directo),
+    \texttt{ancestor\_cmds} (lista de comandos de los ancestros, del más cercano
+    al más lejano) y \texttt{process\_id} (hash SHA-256 truncado a 12 caracteres
+    de la combinación \texttt{pid:lstart}, que identifica claramente al proceso
+    incluso ante reutilización de PID gracias al timestamp de inicio, pero
+    cuando \texttt{lstart} no está disponible se recurre a \texttt{pid:cmd}).
+    Los campos \texttt{ppid\_cmd} y \texttt{ancestor\_cmds} son los que
+    alimentan los filtros \texttt{ppid\_cmd\_contains} y
+    \texttt{ancestor\_contains} de la Capa 3.
 \end{itemize}
 
 \subsubsection*{Eventos de logs}
@@ -303,10 +310,15 @@ Generados por el monitor de logs mediante lectura directa de archivos en el host
 escritos a través de volúmenes Docker.
 \begin{sloppypar}
     \begin{itemize}
-        \item \textbf{\texttt{log\_entry}}: línea de log parseada exitosamente
-        como JSON. \texttt{details} contiene \texttt{source\_file} (ruta del
-        archivo de log en el host) y \texttt{parsed} (objeto JSON completo de la
-        línea detectada).
+        \item \textbf{\texttt{log\_entry}}: línea de log nueva detectada en un
+        archivo monitoreado. El monitor autodetecta el formato de cada línea, lo
+        que produce dos variantes de \texttt{details}. Si la línea parsea como
+        JSON, contiene \texttt{source\_file} (ruta del archivo de log en el
+        host) y \texttt{parsed} (objeto JSON completo de la línea). Si no, la
+        línea se trata como texto plano y \texttt{details} contiene
+        \texttt{source\_file} y \texttt{raw\_line} (la línea íntegra). Esta
+        segunda variante es la que consumen los escenarios basados en MySQL,
+        cuyo \textit{query log} es texto plano.
     \end{itemize}
 \end{sloppypar}
 
@@ -320,13 +332,15 @@ dos tipos de eventos:
 \begin{itemize}
     \item \textbf{\texttt{network\_payload}}: paquete observado con contenido
     ASCII imprimible relevante. \texttt{details} contiene \texttt{data} (texto
-    ASCII imprimible extraído del payload), \texttt{src\_ip},
-    \texttt{src\_port}, \texttt{dst\_ip}, \texttt{dst\_port} y \texttt{flags}
-    (banderas TCP del paquete, por ejemplo \texttt{[P.]} o \texttt{[S.]}).
+    ASCII imprimible extraído del payload, la captura se realiza a nivel de
+    paquete con \texttt{tcpdump -A}, y el parser observa además las banderas TCP
+    del paquete, por ejemplo \texttt{[S.]} o \texttt{[P.]}, para clasificarlo),
+    \texttt{src\_ip}, \texttt{src\_port}, \texttt{dst\_ip} y \texttt{dst\_port}.
 
     \item \textbf{\texttt{network\_connection}}: conexión TCP establecida hacia
     un destino, detectada por el primer paquete \texttt{SYN-ACK} (\texttt{Flags
-    [S.]}). \texttt{details} contiene \texttt{dst\_ip} y \texttt{dst\_port}.
+    [S.]}). \texttt{details} contiene \texttt{src\_ip}, \texttt{dst\_ip} y
+    \texttt{dst\_port}.
 \end{itemize}
 
 La Capa 2 garantiza que todo evento emitido cumple el schema antes de enviarse,
@@ -399,8 +413,11 @@ que \texttt{matched} es \texttt{True}, no vuelve a \texttt{False}. La Capa 4
 consume estos resultados para persistirlos en SQLite mediante la entidad
 \texttt{TargetResult} y para emitirlos a través de un \texttt{NotificationSink}
 central que decide, según política por tipo, qué se imprime en el TTY del
-educador y qué queda únicamente en log y en las vistas agregadas \texttt{run
-dashboard} y \texttt{run feed}.
+educador y qué queda únicamente en log y en las vistas agregadas \texttt{dashboard} 
+y \texttt{feed}. A partir de los instantes en que cada hoja
+matchea, la Capa 4 deriva un registro de tiempos por run: la duración total y el
+tiempo de cada etapa hasta su objetivo, que se ofrece al educador en esas mismas
+vistas sin necesidad de almacenar datos adicionales.
 \subsection{Capa 4 → Capa 1: Ciclo de Vida}
 
 La Capa 4 es la única capa que modifica el estado de la Capa 1, y lo hace
@@ -491,9 +508,13 @@ componen otros targets en árboles recursivos.
 
     \item[\texttt{network\_payload}] Detecta payloads de paquetes de red cuyo
     contenido ASCII imprimible coincida con una expresión regular. Requiere
-    \texttt{field\_matches} con la clave \texttt{data}; el matching se realiza
-    con \texttt{re.IGNORECASE} sobre el texto extraído del paquete. Requiere que
-    el escenario defina \texttt{attacker\_image} y, opcionalmente,
+    \texttt{field\_matches} con la clave \texttt{data}, y el matching se realiza
+    con \texttt{re.IGNORECASE} sobre el texto extraído del paquete. El
+    \textit{sidecar} de captura comparte el \textit{network namespace} del
+    contenedor vulnerable. Estos escenarios exigen definir un entorno atacante
+    (\texttt{attacker\_image}): es el espacio controlado desde el cual el
+    estudiante lanza el ataque y, por tanto, la fuente del tráfico que el
+    monitor observa. Opcionalmente se acota la captura con
     \texttt{capture\_filter} en el bloque \texttt{environment}.
 
     \item[\texttt{network\_connection}] Detecta conexiones TCP establecidas
@@ -574,6 +595,15 @@ ejecución. Los errores de validación producen mensajes que indican el campo
 problemático y el valor esperado, sin requerir ejecutar el sistema para
 descubrirlos.
 
+Más allá de la carga de escenarios, este contrato también da soporte a las
+operaciones de validación y limpieza que el educador necesita sobre los
+escenarios y la actividad acumulada. Se exponen más detalles en el capítulo de
+implementación.
+
+% TODO figura: diagrama de flujo de datos entre las cuatro capas + Educador
+% (estado observable, eventos estructurados, resultados de evaluación, ciclo de
+% vida y YAML del escenario) (ver Paso 4)
+
 \section{Modelo de Datos}
 
 El estado del sistema se persiste en una base de datos SQLite gestionada
@@ -610,7 +640,13 @@ acceso del estudiante (\texttt{attacker\_ssh\_port},
 educador pueda recuperar las credenciales en cualquier momento desde la CLI. La
 contraseña SSH se guarda en texto plano dentro del archivo SQLite del educador,
 con la trazabilidad documentada en el código sobre por qué este compromiso es
-aceptable para el contexto educativo. La validación de unicidad sobre el par
+aceptable para el contexto educativo. El campo \texttt{status} recorre los
+estados de \texttt{RunStatus} a lo largo del ciclo de vida del ejercicio (desde
+\texttt{pending} hasta los estados terminales \texttt{completed},
+\texttt{failed}, \texttt{timeout} o \texttt{stopped}, pasando por
+\texttt{running}, \texttt{stopping} y \texttt{resetting}). Mientras que los
+campos \texttt{reset\_payload} y \texttt{daemon\_message} acompañan a esas
+transiciones mediadas por el daemon. La validación de unicidad sobre el par
 (\texttt{scenario\_id}, \texttt{participant\_id}) para runs activos se hace a
 nivel aplicación, no de base de datos: el mismo participante puede tener
 múltiples runs históricos del mismo escenario, lo que permite reintentos sin
@@ -618,13 +654,19 @@ borrar el historial previo.
 
 \textbf{TargetResult} registra el estado de evaluación de cada objetivo
 individual dentro de un \textit{run}, incluyendo el evento exacto que causó el
-\textit{match} serializado como JSON. Cuando un target de primer nivel es un
-nodo lógico (\texttt{and}, \texttt{or} o \texttt{not}), se persiste un
-\texttt{TargetResult} por cada hoja del árbol además del nodo raíz, y
-el campo \texttt{children} reconstruye la estructura lógica para que la Capa 4
-pueda presentar al educador qué sub-condición disparó el \textit{match}. Tiene
-índice ordinario sobre \texttt{run\_id} para recuperar eficientemente todos los
-resultados de un run.
+\textit{match} serializado como JSON. Cada fila corresponde a una \emph{hoja}
+del árbol de targets: el árbol del escenario se aplana en orden DFS y cada hoja
+recibe un \texttt{target\_index} secuencial. Los nodos lógicos (\texttt{and},
+\texttt{or}, \texttt{not}) no se persisten como filas, aportan estructura solo
+en memoria. El reenlace entre la hoja del modelo Pydantic de la Capa 3 y su fila
+es posicional por \texttt{target\_index} en ese mismo orden DFS, lo que evita
+guardar un camino jerárquico en la base de datos. Sus columnas son \texttt{id},
+\texttt{run\_id}, \texttt{target\_index}, \texttt{target\_type},
+\texttt{description}, \texttt{matched}, \texttt{matched\_at},
+\texttt{trigger\_event} y \texttt{reset\_at}. Este último permite reintentos sin
+borrar el historial, ya que el intento actual es el conjunto de filas con
+\texttt{reset\_at} nulo. Tiene índice ordinario sobre \texttt{run\_id} para
+recuperar eficientemente todos los resultados de un run.
 
 \textbf{RunEvent} guarda el flujo completo de eventos del monitor asociados a un
 run (\texttt{monitor\_type}, \texttt{event\_type}, \texttt{details\_json},
@@ -674,11 +716,19 @@ vulnerable mediante \texttt{--network container:\{nombre\_vulnerable\}}, lo que
 le permite observar todo el tráfico del vulnerable sin introducir interfaces
 adicionales en la topología de red del entorno.
 
+% TODO figura: topología de red (red interna/externa + sidecar, 3 contenedores)
+% — vulnerable solo en la red interna, atacante en ambas redes, sidecar
+% compartiendo el netns del vulnerable (ver Paso 4)
+
 \subsection*{Aislamiento de filesystem}
 
 Los bind mounts efímeros descritos en la Sección~\ref{sec:implementacion} se
-crean con permisos \texttt{0o700}, accesibles únicamente por el proceso del
-daemon rootless. Al destruir el entorno, el árbol de directorios completo se
-elimina mediante \texttt{shutil.rmtree()}. Los directorios de captura de red,
-cuando existen, se eliminan en el mismo ciclo de destrucción, antes de detener
-los contenedores.
+crean en su mayoría con permisos \texttt{0o700}, accesibles únicamente por el
+proceso del daemon rootless. La base de volúmenes y el directorio de captura de
+red usan ese modo. Una excepción son los directorios de logs que se montan al
+contenedor vulnerable, creados con \texttt{0o777} para que el proceso del
+contenedor pueda escribir sus archivos de log. Al destruir el entorno, el árbol
+de directorios completo se elimina mediante \texttt{shutil.rmtree()}. El
+contenedor \textit{sidecar} de captura se detiene y elimina al inicio del ciclo
+de destrucción, antes de detener el contenedor vulnerable y atacante, y su
+directorio de captura se borra en ese mismo paso.
