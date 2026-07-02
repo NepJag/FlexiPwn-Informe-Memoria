@@ -357,17 +357,6 @@ lo que estaba creado en el momento del fallo. En definitiva,
 \texttt{Environment} completamente funcional, o lanza la excepción original con
 todos los recursos parciales eliminados.
 
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Máquina de estados de un \textit{run}:
-    \texttt{pending}, \texttt{running}, \texttt{stopping},
-    \texttt{resetting}, \texttt{completed}, \texttt{failed},
-    \texttt{timeout} y \texttt{stopped}.}
-    \label{fig:run-estados}
-\end{figure}
-
 \subsection{Estrategia de \textit{baseline} para los monitores}
 \label{sec:capa1-baseline}
 
@@ -843,10 +832,10 @@ reinicie. Por defecto muestra los hitos del día, pero con \texttt{--all}
 recorre todo el historial almacenado.
 
 % PLACEHOLDER: reemplazar por una captura real (ver Paso 4).
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Captura del \texttt{dashboard}, el \texttt{feed} y
+    \includegraphics[scale=0.5]{imagenes/flexipwn/13.png}
+    \caption{Captura del \texttt{dashboard}, el \texttt{feed} y
     el \textit{badge} del REPL.}
     \label{fig:dashboard}
 \end{figure}
@@ -883,6 +872,28 @@ mismo escenario y al mismo participante en la base de datos: los
 lugar de borrarse, lo que permite al estudiante reintentar el escenario
 manteniendo trazable el historial de intentos sucesivos sobre el mismo
 ejercicio.
+
+% PLACEHOLDER: reemplazar cada imagen por tu captura de pantalla.
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[scale=0.5]{imagenes/flexipwn/1.png}
+        \caption{\texttt{run start}: panel con las credenciales SSH del entorno.}
+        \label{fig:run-start}
+    \end{subfigure}
+    \\[8pt]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[scale=0.5]{imagenes/flexipwn/2.png}
+        \caption{Rechazo de un segundo \texttt{run start} para el mismo par
+        escenario-participante.}
+        \label{fig:run-start-rechazo}
+    \end{subfigure}
+    \caption{Ciclo de vida de un \textit{run} desde la CLI.}
+    \label{fig:run-lifecycle}
+\end{figure}
+
 \begin{sloppypar}
 El SSH del contenedor atacante no necesariamente se publica en todas las
 interfaces del \textit{host}. La configuración \texttt{attacker\_bind\_ips}
@@ -910,6 +921,26 @@ se satisfizo (campo \texttt{matched\_at}) junto con el \textit{delta} respecto
 al hito anterior. Los hitos se ordenan cronológicamente por \texttt{matched\_at}
 porque el estudiante puede cumplir los objetivos en cualquier orden.
 
+% PLACEHOLDER: reemplazar cada imagen por tu captura de pantalla.
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[scale=0.5]{imagenes/flexipwn/4.png}
+        \caption{\texttt{run show} con las estadísticas de tiempo por hito.}
+        \label{fig:run-show}
+    \end{subfigure}
+    \\[8pt]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[scale=0.5]{imagenes/flexipwn/5.png}
+        \caption{\texttt{scenario validate} sobre un YAML válido e inválido.}
+        \label{fig:scenario-validate}
+    \end{subfigure}
+    \caption{Observación y validación desde la CLI.}
+    \label{fig:run-observacion}
+\end{figure}
+
 \subsection{Credenciales de los participantes}
 
 \begin{sloppypar}
@@ -934,6 +965,27 @@ cuando el \textit{daemon} crea al atacante, genera una clave propia con
 del participante (el \textit{hash} \texttt{bcrypt}) no interviene en el flujo de
 acceso SSH.
 
+% PLACEHOLDER: reemplazar cada imagen por tu captura de pantalla.
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[scale=0.5]{imagenes/flexipwn/7.png}
+        \caption{\texttt{participant add} muestra las credenciales generadas.}
+        \label{fig:participant-add}
+    \end{subfigure}
+    \\[8pt]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[scale=0.5]{imagenes/flexipwn/8.png}
+        \caption{\texttt{participant reset-password} genera una nueva
+        contraseña.}
+        \label{fig:participant-reset}
+    \end{subfigure}
+    \caption{Gestión de credenciales de los participantes.}
+    \label{fig:participantes}
+\end{figure}
+
 \subsection{Visor de objetivos y pistas del estudiante}
 
 Una vez dentro del contenedor atacante, el estudiante tiene acceso al comando
@@ -945,6 +997,15 @@ contrato \texttt{exec\_run} del proveedor. El comando \texttt{flexipwn} de la
 imagen solo lee ese archivo, sin lógica propia. El contenedor vulnerable nunca
 se toca: el atacante es la única sesión que la plataforma aprovisiona para el
 estudiante y funciona como su propio \texttt{feed}.
+
+% PLACEHOLDER: reemplazar la imagen por tu captura de pantalla.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{imagenes/flexipwn/9.png}
+    \caption{Comando \texttt{flexipwn} en el contenedor atacante: objetivos
+    del escenario, pistas y estado de cada uno.}
+    \label{fig:visor-estudiante}
+\end{figure}
 
 \subsection{Limpieza del laboratorio}
 
@@ -989,3 +1050,11 @@ En el CSV se escriben siete columnas (\texttt{scenario}, \texttt{username},
 decidir si reintenta esos casos puntuales sin descartar y rehacer el lote
 completo.
 \end{sloppypar}
+
+% PLACEHOLDER: reemplazar cada imagen por tu captura de pantalla.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{imagenes/flexipwn/10.png}
+    \caption{Asignación masiva con \texttt{batch-start}.}
+    \label{fig:batch}
+\end{figure}

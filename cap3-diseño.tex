@@ -618,6 +618,15 @@ implementación.
 
 \section{Modelo de Datos}
 
+% PLACEHOLDER: reemplazar por imagenes/erd.pdf (flexipwn_erd_v2.pdf de Notion).
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Diagrama entidad-relación del modelo de datos de
+    FlexiPwn.}
+    \label{fig:erd}
+\end{figure}
+
 El estado del sistema se persiste en una base de datos SQLite gestionada
 mediante \texttt{SQLModel}. La elección de SQLite responde al contexto de
 despliegue: una
@@ -670,6 +679,17 @@ múltiples \textit{runs} históricos del mismo escenario, lo que permite
 reintentos sin
 borrar el historial previo.
 
+% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Máquina de estados de un \textit{run}:
+    \texttt{pending}, \texttt{running}, \texttt{stopping},
+    \texttt{resetting}, \texttt{completed}, \texttt{failed},
+    \texttt{timeout} y \texttt{stopped}.}
+    \label{fig:run-estados}
+\end{figure}
+
 \textbf{TargetResult} registra el estado de evaluación de cada objetivo
 individual dentro de un \textit{run}, incluyendo el evento exacto que causó el
 \textit{match} serializado como JSON. Cada fila corresponde a una \emph{hoja}
@@ -696,15 +716,6 @@ de qué targets matcheen o no: permite reconstruir a posteriori la secuencia de
 acciones del estudiante. Tiene índice ordinario sobre \texttt{run\_id}.
 \end{sloppypar}
 
-% PLACEHOLDER: reemplazar por imagenes/erd.pdf (flexipwn_erd_v2.pdf de Notion).
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Diagrama entidad-relación del modelo de datos de
-    FlexiPwn.}
-    \label{fig:erd}
-\end{figure}
-
 \section{Aislamiento de Entornos}
 
 El aislamiento entre los entornos de práctica de distintos participantes opera
@@ -712,6 +723,17 @@ en dos dimensiones complementarias: aislamiento de red y aislamiento de
 filesystem.
 
 \subsection*{Modelo de red de doble capa}
+
+% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
+    \caption{[Placeholder] Topología de red del entorno: red interna y
+    externa con el \textit{sidecar} y los tres contenedores. El vulnerable
+    solo en la red interna, el atacante en ambas, y el \textit{sidecar}
+    compartiendo el \textit{netns} del vulnerable.}
+    \label{fig:topologia-red}
+\end{figure}
 
 Cada entorno instancia dos redes Docker independientes con roles diferenciados.
 La red interna (\texttt{flexipwn-\{env\_id\}}), creada con
@@ -738,17 +760,6 @@ contenedor vulnerable mediante \texttt{--network container:\{nombre\_vulnerable\
 lo que
 le permite observar todo el tráfico del vulnerable sin introducir interfaces
 adicionales en la topología de red del entorno.
-
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Topología de red del entorno: red interna y
-    externa con el \textit{sidecar} y los tres contenedores. El vulnerable
-    solo en la red interna, el atacante en ambas, y el \textit{sidecar}
-    compartiendo el \textit{netns} del vulnerable.}
-    \label{fig:topologia-red}
-\end{figure}
 
 \subsection*{Aislamiento de filesystem}
 
