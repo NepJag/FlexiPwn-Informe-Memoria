@@ -45,9 +45,10 @@ de virtualización o contenerización concreta.
 
 La Capa 2 no usa librerías de monitoreo externas: observa el estado de los
 contenedores exclusivamente a través del SDK de Docker y de lectura de archivos
-en el host. El monitor de \textbf{filesystem} usa \texttt{container.diff()}; el
-de \textbf{procesos}, \texttt{container.top()}; el de \textbf{logs} lee
-directamente los archivos que el contenedor escribe en \textit{bind mounts}; y
+en el \textit{host}. El monitor de \textbf{filesystem} usa
+\texttt{container.diff()}; el de \textbf{procesos}, \texttt{container.top()}; el
+de \textbf{logs} lee directamente los archivos que el contenedor escribe en
+\textit{bind mounts}; y
 el de \textbf{red} parsea la salida de un contenedor \textit{sidecar} basado en
 la imagen \texttt{nicolaka/netshoot} que ejecuta \texttt{tcpdump}. Esta
 implementación se describe en detalle más adelante en este capítulo.
@@ -75,10 +76,10 @@ contenedores: sus pruebas corren en memoria, sin necesidad de Docker.
 La interfaz para educadores y estudiantes es una CLI construida con
 \texttt{Typer}, que genera comandos, subcomandos, validación de argumentos y
 páginas de ayuda a partir de las anotaciones de tipo de Python. \texttt{Rich}
-complementa a Typer con el \textit{output} visual: tablas de escenarios, paneles
-de progreso e indicadores de estado. Sobre esta base, la administración opera
-como un \textit{daemon} con un REPL interactivo construido con
-\texttt{prompt\_toolkit}, que permite al educador operar el sistema en
+complementa a \texttt{Typer} con el \textit{output} visual: tablas de
+escenarios, paneles de progreso e indicadores de estado. Sobre esta base, la
+administración opera como un \textit{daemon} con un REPL interactivo construido
+con \texttt{prompt\_toolkit}, que permite al educador operar el sistema en
 \textit{foreground} o conectarse a un \textit{daemon} en segundo plano. Este
 componente se detalla en la sección~\ref{sec:capa4impl}.
 
@@ -138,7 +139,7 @@ adicionales.
 
 Dos decisiones del \textit{stack} están marcadas para revisión futura. La
 primera es migrar el \texttt{EnvironmentProvider} de Docker \textit{rootless} a
-\textbf{Podman rootless}, que al ser \textit{daemonless} elimina el
+\textbf{Podman \textit{rootless}}, que al ser \textit{daemonless} elimina el
 \textit{daemon} centralizado como superficie de ataque, y que se podría lograr
 gracias a que la interfaz abstracta hace que este cambio no afecte a las capas
 superiores. La segunda es complementar la CLI con una \textbf{interfaz web} para
@@ -153,13 +154,13 @@ estudiantes en paralelo. Cada entorno debe ser aislado, reseteable y
 monitoreable desde Python. La elección de tecnología de virtualización impacta
 directamente en cinco dimensiones que se ponderaron según su importancia para el
 proyecto: seguridad del \textit{host} (30\%), por tratarse de ejercicios con
-exploits activos; rapidez de inicialización (20\%), que define la experiencia
-del estudiante al pedir su entorno; simplicidad de implementación (20\%), que
-afecta la velocidad de desarrollo y la mantenibilidad; monitoreo programático
-(15\%), es decir, la facilidad para inspeccionar, por ejemplo, el
-\textit{filesystem} y los logs desde Python; y portabilidad (15\%), para que el
-sistema funcione tanto en equipos educativos como en los servidores del
-laboratorio CLCERT.
+\textit{exploits} activos; rapidez de inicialización (20\%), que define la
+experiencia del estudiante al pedir su entorno; simplicidad de implementación
+(20\%), que afecta la velocidad de desarrollo y la mantenibilidad; monitoreo
+programático (15\%), es decir, la facilidad para inspeccionar, por ejemplo, el
+\textit{filesystem} y los \textit{logs} desde Python; y portabilidad (15\%),
+para que el sistema funcione tanto en equipos educativos como en los servidores
+del laboratorio CLCERT.
 
 Se evaluaron cuatro alternativas: Docker \textit{rootful}, Docker
 \textit{rootless}, Podman \textit{rootless} y KVM/libvirt (máquinas virtuales
@@ -195,8 +196,9 @@ expone una API compatible con la de Docker, utilizable mediante
 \texttt{docker-py} o el cliente nativo \texttt{podman-py} \cite{podman-py,
 podman-vs-docker}.
 
-\textbf{KVM/libvirt} ofrece el mayor aislamiento posible, un kernel separado por
-máquina virtual, pero con un costo prohibitivo para el caso de uso: tanto el
+\textbf{KVM/libvirt} ofrece el mayor aislamiento posible, un \textit{kernel}
+separado por máquina virtual, pero con un costo prohibitivo para el caso de uso:
+tanto el
 arranque de cada instancia como su consumo de memoria son significativamente
 mayores que los de un contenedor \cite{felter-vm-containers}, y la operación a
 escala suele requerir herramientas como Terraform, Packer y Ansible.
@@ -253,8 +255,9 @@ Hay que notar que Podman \textit{rootless} obtuvo el puntaje ponderado más alto
 \textit{daemonless}. La razón para no elegirlo como \textit{backend} principal
 fue pragmática: \texttt{podman-py} es funcional pero aún en desarrollo activo,
 con diferencias sutiles respecto a \texttt{docker-py} en operaciones de
-\textit{streaming} de logs y \textit{stats}, y la documentación y comunidad de
-\texttt{docker-py} es considerablemente mayor. En términos prácticos, ambas
+\textit{streaming} de \textit{logs} y \textit{stats}, y la documentación y
+comunidad de \texttt{docker-py} es considerablemente mayor. En términos
+prácticos, ambas
 alternativas ofrecen garantías de seguridad equivalentes para los ejercicios de
 FlexiPwn. La diferencia arquitectónica es significativa en producción a gran
 escala, pero marginal para una instalación educativa de algunas decenas de
@@ -269,13 +272,15 @@ vulnerabilidades más sofisticadas. La primera es implementar un
 \texttt{PodmanProvider}, mejora natural en seguridad arquitectónica por su base
 \textit{rootless}. La segunda es usar gVisor (\texttt{runsc}) como
 \textit{runtime} alternativo para ejercicios con vulnerabilidades más delicadas:
-añade un kernel en espacio de usuario que intercepta \textit{syscalls} con un
-\textit{overhead} mucho menor que una VM, aunque implementa solo una parte de
-las \textit{syscalls} de Linux, lo que puede causar incompatibilidades con
-ciertos exploits. La tercera es Kata Containers para ejercicios de
+añade un \textit{kernel} en espacio de usuario que intercepta \textit{syscalls}
+con un \textit{overhead} mucho menor que una VM, aunque implementa solo una
+parte de las \textit{syscalls} de Linux, lo que puede causar incompatibilidades
+con
+ciertos \textit{exploits}. La tercera es Kata Containers para ejercicios de
 \textit{kernel exploitation}, donde Docker \textit{rootless} no basta porque el
-kernel del \textit{host} sigue siendo compartido. Kata ejecuta los
-\textit{workloads} en una VM ligera con su propio kernel, resolviendo ese límite
+\textit{kernel} del \textit{host} sigue siendo compartido. Kata ejecuta los
+\textit{workloads} en una VM ligera con su propio \textit{kernel}, resolviendo
+ese límite
 a cambio de un arranque algo mayor \cite{northflank-isolation}.
 
 \section{Capa 1: Orquestador de Contenedores}
@@ -456,8 +461,8 @@ siguientes lee solo las líneas nuevas desde la última posición conocida.
 
 Cada línea se intenta parsear como JSON. Si el \textit{parsing} tiene éxito, el
 evento \texttt{log\_entry} expone los campos estructurados en
-\verb|details["parsed"]|. Si la línea es texto plano (caso de logs como el
-\texttt{general\_log} de MySQL), el evento la expone en
+\verb|details["parsed"]|. Si la línea es texto plano (caso de \textit{logs} como
+el \texttt{general\_log} de MySQL), el evento la expone en
 \verb|details["raw_line"]|. Esta auto-detección por línea evita que el educador
 deba declarar el formato del \textit{log} en el escenario y permite mezclar
 fuentes estructuradas y no estructuradas en el mismo ejercicio. El monitor
@@ -477,8 +482,9 @@ namespace de red del sistema vulnerable.
 
 \subsubsection*{Contenedor \textit{sidecar}}
 \begin{sloppypar}
-    Al crear el entorno, si el árbol de targets del escenario contiene al menos
-    una hoja \texttt{network\_*} (sea como target de primer nivel o anidada en
+    Al crear el entorno, si el árbol de \textit{targets} del escenario contiene
+    al menos una hoja \texttt{network\_*} (sea como \textit{target} de primer
+    nivel o anidada en
     cualquier nivel dentro de nodos \texttt{and}, \texttt{or} o \texttt{not}),
     \texttt{DockerRootlessProvider} lanza un contenedor adicional basado en la
     imagen \texttt{nicolaka/netshoot} con la siguiente configuración:
@@ -504,8 +510,8 @@ namespace de red del sistema vulnerable.
 
 El binario \texttt{tcpdump} no se ejecuta desde su ruta original, sino que se
 copia a \texttt{/tmp/fpcap} y se lanza desde ahí. El motivo es un
-\textit{workaround} de AppArmor: el perfil del host asociado a la ruta estándar
-del binario deniega que el \textit{sidecar} reciba las señales de
+\textit{workaround} de AppArmor: el perfil del \textit{host} asociado a la ruta
+estándar del binario deniega que el \textit{sidecar} reciba las señales de
 \texttt{rootlesskit}, lo que dejaría al \textit{sniffer} imposible de detener en
 el \textit{teardown}. Al ejecutarlo desde una ruta que no coincide con el
 perfil, el proceso corre sin limitaciones y la destrucción del entorno puede
@@ -523,26 +529,28 @@ terminarlo de forma limpia.
 \end{figure}
 
 El uso de \texttt{-n} desactiva la resolución de nombres, forzando IPs numéricas
-en el output y evitando que el parser del monitor falle ante hostnames como
-\texttt{localhost}. El flag \texttt{-l} activa el line-buffering de tcpdump,
-reduciendo la latencia entre la escritura del paquete y su disponibilidad en el
-archivo del host.
+en el \textit{output} y evitando que el parser del monitor falle ante hostnames
+como \texttt{localhost}. El \textit{flag} \texttt{-l} activa el line-buffering
+de \texttt{tcpdump}, reduciendo la latencia entre la escritura del paquete y su
+disponibilidad en el archivo del \textit{host}.
 
 \subsubsection*{Parsing packet-based}
 
 \texttt{NetworkMonitor} lee el archivo \texttt{traffic.txt} de forma incremental
-en cada ciclo de polling, procesando el output de tcpdump como unidades de
-paquete completo en lugar de línea por línea. Esta decisión fue necesaria porque
-el output de \texttt{tcpdump -A} en modo \texttt{-i any} mezcla bytes ASCII del
-payload con bytes binarios de los headers TCP/IP, y el carácter \texttt{0x0a}
-(LF) puede aparecer dentro de los headers, partiendo artificialmente el payload
-en múltiples líneas si se procesa con \texttt{splitlines()}.
+en cada ciclo de \textit{polling}, procesando el \textit{output} de
+\texttt{tcpdump} como unidades de paquete completo en lugar de línea por línea.
+Esta decisión fue necesaria porque el \textit{output} de \texttt{tcpdump -A} en
+modo \texttt{-i any} mezcla bytes ASCII del \textit{payload} con bytes binarios
+de los headers TCP/IP, y el carácter \texttt{0x0a} (LF) puede aparecer dentro de
+los headers, partiendo artificialmente el \textit{payload} en múltiples líneas
+si se procesa con \texttt{splitlines()}.
 
 El monitor detecta las cabeceras de paquete mediante una expresión regular que
 acepta el formato de \texttt{-i any} (que incluye el nombre de interfaz y
 dirección entre el timestamp y la IP) y extrae de ellas las IPs y puertos de
 origen y destino. Las líneas entre cabeceras se acumulan en un buffer de
-payload. Cuando se detecta una nueva cabecera, el buffer del paquete anterior se
+\textit{payload}. Cuando se detecta una nueva cabecera, el buffer del paquete
+anterior se
 procesa: se extrae todo el texto en rango ASCII imprimible
 (\texttt{0x20--0x7e}), y si el resultado supera los cuatro caracteres se emite
 un \texttt{MonitorEvent} de tipo \texttt{network\_payload} con el texto extraído
@@ -553,7 +561,8 @@ puerto de destino.
 Una implicación importante del modelo packet-based es que el último paquete de
 una ráfaga de tráfico corta podría quedar atrapado en el buffer si no llega una
 cabecera posterior que dispare su procesamiento. Para evitar esto, al final de
-cada ciclo de polling el monitor procesa el paquete en curso si el buffer no
+cada ciclo de \textit{polling} el monitor procesa el paquete en curso si el
+buffer no
 está vacío, sin esperar al siguiente ciclo.
 
 \subsection{Limitaciones del Monitoreo por Polling}
@@ -625,19 +634,20 @@ Los tipos de target implementados en el estado actual del sistema son:
     procesos. Detecta procesos activos por effective UID y substring en el
     comando.
 
-    \item[\texttt{log\_pattern}] Opera sobre eventos del monitor de logs. Aplica
-    un diccionario de campo→regex sobre los campos de la entrada de log. Si la
-    línea se parseó como JSON, los campos se buscan en la entrada estructurada.
-    En cambio, si el campo declarado es \texttt{raw\_line}, la regex se aplica
-    sobre el texto plano de la línea. Este segundo modo es el que usan los
-    escenarios MySQL, cuyo \texttt{general\_log} no es JSON.
+    \item[\texttt{log\_pattern}] Opera sobre eventos del monitor de
+    \textit{logs}. Aplica un diccionario de campo→regex sobre los campos de la
+    entrada de \textit{log}. Si la línea se parseó como JSON, los campos se
+    buscan en la entrada estructurada. En cambio, si el campo declarado es
+    \texttt{raw\_line}, la regex se aplica sobre el texto plano de la línea.
+    Este segundo modo es el que usan los escenarios MySQL, cuyo
+    \texttt{general\_log} no es JSON.
 
     \item[\texttt{network\_payload}] Opera sobre eventos
     \texttt{network\_payload} del \texttt{NetworkMonitor}. Aplica un diccionario
     de campo→regex sobre el campo \texttt{data} del evento, que contiene el
-    texto ASCII imprimible extraído del payload del paquete. El matching se
-    realiza con \texttt{re.IGNORECASE}, de modo que el educador no necesita
-    contemplar variaciones de capitalización en los patrones.
+    texto ASCII imprimible extraído del \textit{payload} del paquete. El
+    matching se realiza con \texttt{re.IGNORECASE}, de modo que el educador no
+    necesita contemplar variaciones de capitalización en los patrones.
 
     \item[\texttt{network\_connection}] Opera sobre eventos
     \texttt{network\_connection} del \texttt{NetworkMonitor}. Detecta conexiones
@@ -646,8 +656,9 @@ Los tipos de target implementados en el estado actual del sistema son:
 
     \item[\texttt{and}, \texttt{or}, \texttt{not}] Nodos lógicos recursivos que
     permiten componer condiciones complejas sobre cualquier combinación de
-    targets atómicos. El campo \texttt{condition: any|all} del escenario actúa
-    como azúcar sintáctica para listas planas de targets sin nodos lógicos.
+    \textit{targets} atómicos. El campo \texttt{condition: any|all} del
+    escenario actúa como azúcar sintáctica para listas planas de
+    \textit{targets} sin nodos lógicos.
 \end{description}
 
 La inspección de consultas SQL no requiere un evaluador con acceso a la base de
@@ -657,7 +668,7 @@ directamente del tráfico TCP entre la aplicación y el motor de base de datos,
 preservando la pasividad del monitoreo. Esto exige que el motor de base de
 datos del escenario opere sin TLS en la conexión \textit{cliente-servidor}: la
 imagen \texttt{flexipwn/vuln-sqli-mysql} construida para los escenarios actuales
-desactiva TLS por configuración para mantener el payload SQL visible al
+desactiva TLS por configuración para mantener el \textit{payload} SQL visible al
 \textit{sniffer}, decisión didáctica del escenario y no del sistema. Un
 escenario que conserve TLS forzado expondría únicamente metadatos (IPs,
 puertos y \textit{flags} TCP) al monitor de red, y obligaría al educador a
@@ -691,10 +702,10 @@ sub-aplicación en un solo archivo.
 El módulo \texttt{Rich} se usa exclusivamente para el \textit{output}: tablas de
 escenarios y \textit{runs}, paneles con las credenciales SSH del estudiante, e
 indicadores con código de color para los estados (\texttt{running},
-\texttt{completed}, \texttt{failed}, \texttt{timeout}). El uso de Typer + Rich
-es un patrón estándar para CLI en Python y reduce significativamente el código
-que la plataforma debe escribir para entregar una experiencia de terminal
-limpia.
+\texttt{completed}, \texttt{failed}, \texttt{timeout}). El uso de \texttt{Typer}
++ \texttt{Rich} es un patrón estándar para CLI en Python y reduce
+significativamente el código que la plataforma debe escribir para entregar una
+experiencia de terminal limpia.
 
 La CLI ofrece además un modo verboso para diagnóstico: la bandera global
 \texttt{--verbose} (o la variable de entorno \texttt{FLEXIPWN\_LOG}) eleva el
@@ -781,9 +792,9 @@ bitácora del ejercicio, y cada cambio que la Capa 3 reporta a través de
 \texttt{ExerciseRun} correspondientes. Esos mismos cambios se emiten además
 como \texttt{Notification} hacia el \texttt{NotificationSink}, único punto por
 el que el \textit{daemon} decide entre escribir al TTY del educador o silenciar
-la notificación dejándola en log y, vía DB, en el \texttt{feed} persistente.
-Existe una \textit{race condition}
-conocida entre el motor de evaluación y la observación pasiva, que el
+la notificación dejándola en \textit{log} y, vía DB, en el \texttt{feed}
+persistente. Existe una \textit{race condition} conocida entre el motor de
+evaluación y la observación pasiva, que el
 \texttt{DaemonLoop} maneja explícitamente con una regla de precedencia: los
 estados terminales son irreversibles. Si, por ejemplo, un contenedor desaparece
 inesperadamente y un \textit{poll} en vuelo reporta
@@ -848,8 +859,9 @@ El acceso a la base de datos no se hace directamente desde la CLI ni desde el
 \texttt{create\_participant}, \texttt{start\_run},
 \texttt{finalize\_run\_state}, \texttt{record\_event},
 \texttt{record\_target\_result}, entre otras, y que es el único que abre
-sesiones SQLModel. Esta separación mantiene el resto del sistema agnóstico al
-mapeo objeto-relacional y permite cambiar el motor de persistencia sin tocar las
+sesiones \texttt{SQLModel}. Esta separación mantiene el resto del sistema
+agnóstico al mapeo objeto-relacional y permite cambiar el motor de persistencia
+sin tocar las
 capas superiores.
 \end{sloppypar}
 
@@ -959,8 +971,9 @@ lo que la secuencialidad es la que garantiza puertos disjuntos. El
 \textit{polling} de monitoreo de los entornos ya creados, no su despliegue.
 Opcionalmente, se permite copiar los datos a un CSV que el educador puede
 distribuir a los participantes, de modo que cada estudiante recibe sus
-credenciales y el endpoint SSH del atacante asignado a su \textit{run}. Cada
-invocación crea un participante nuevo por cada entrada del YAML, así que volver
+credenciales y el \textit{endpoint} SSH del atacante asignado a su \textit{run}.
+Cada invocación crea un participante nuevo por cada entrada del YAML, así que
+volver
 a ejecutar el mismo archivo duplica los entornos en lugar de reutilizarlos.
 
 Si la materialización de un entorno falla en mitad del \textit{batch} (por

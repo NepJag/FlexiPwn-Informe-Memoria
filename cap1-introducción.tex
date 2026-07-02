@@ -117,12 +117,13 @@ es fundamental para lograr flexibilidad y extensibilidad.
     \item[Capa 2 — Monitoreo pasivo] Observa pasivamente el estado de los
     contenedores con acceso de lectura externo al sistema. La única excepción a
     esa lectura externa pura es la captura de tráfico de red, que requiere un
-    contenedor auxiliar (\textit{sidecar}) corriendo \textit{tcpdump}, por ser
+    contenedor auxiliar (\textit{sidecar}) corriendo \texttt{tcpdump}, por ser
     la forma adecuada de capturar el tráfico del escenario. Los escenarios de
     referencia asumen tráfico en claro, sin TLS, para que la captura resulte
     legible. La responsabilidad de esta capa es solo generar un registro
     estructurado de eventos detectables: modificaciones del sistema de archivos,
-    procesos creados, entradas de log y tráfico o conexiones de red, entre
+    procesos creados, entradas de \textit{log} y tráfico o conexiones de red,
+    entre
     otros. Su comportamiento es análogo al de un SIEM (Security Information and
     Event Management) acotado a un único escenario de ataque.
 
@@ -224,13 +225,15 @@ entregada:
 
 Surgió un momento interesante en la etapa final del trabajo, al estudiar una
 prueba de concepto de escape de contenedores para comprender el funcionamiento
-de este tipo de exploit y respaldar el análisis de contención del entorno. Al
+de este tipo de \textit{exploit} y respaldar el análisis de contención del
+entorno. Al
 tratar un tema sensible, las primeras consultas sobre una prueba de concepto
 realista del CVE~\cite{cve-runc-2025, poc-cve-2025-31133} en cuestión fueron
 rechazadas por las políticas de uso de la herramienta. Tras solicitar al equipo
 de Anthropic un acceso ampliado y explicar su propósito educativo dentro de este
 trabajo de ciberseguridad, la consulta pudo retomarse. A partir de ahí, el
-modelo resultó de gran ayuda para seguir el exploit paso a paso, consiguiendo
+modelo resultó de gran ayuda para seguir el \textit{exploit} paso a paso,
+consiguiendo
 compararlo con otros CVE relacionados, distinguiendo, por ejemplo, los que se
 ejecutan desde el interior del contenedor de los que afectan directamente al
 \textit{host}.

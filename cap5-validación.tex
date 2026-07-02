@@ -135,7 +135,7 @@ La detección combina dos canales. Por un lado, el monitor de \textit{logs}
 observa el \textit{log} general de MySQL y reconoce patrones como la condición
 \texttt{OR 1=1}, la autenticación exitosa y la consulta sobre la tabla de datos
 sensibles. Por otro, el \textit{sidecar} de captura ejecuta
-tcpdump con el filtro
+\texttt{tcpdump} con el filtro
 \texttt{port 3306} y reconoce los mismos patrones, además de la \textit{flag}
 esperada del flujo, directamente en el tráfico hacia MySQL. Esta redundancia
 ilustra cómo \textit{logs} y red se refuerzan: cada \textit{payload} activa
@@ -159,7 +159,8 @@ Los objetivos disparados son la conexión de red saliente hacia el puerto 4444
 (\texttt{file\_created}). Este escenario justifica de forma concreta dos
 decisiones de arquitectura descritas en capítulos anteriores:
 el \textit{sidecar}
-de captura tcpdump de la Capa~2, necesario para observar la conexión inversa, y
+de captura \texttt{tcpdump} de la Capa~2, necesario para observar la conexión
+inversa, y
 la red externa entre atacante y \textit{host} de la Capa~1. Además, como los
 escenarios anteriores, el \textit{walkthrough} completo está presente en el
 README del repositorio.
@@ -194,8 +195,9 @@ siguiente:
         \texttt{test\_layer2\_process} y \texttt{test\_layer2\_filesystem}.
   \item \textbf{YAML malformado.} Una descripción inválida, por ejemplo, sin
         sección de entorno, con un objetivo sin tipo o con una condición no
-        permitida, es rechazada por la validación de esquema de Pydantic sin
-        dejar una fila parcial en la base de datos. Lo cubre
+        permitida, es rechazada por la validación de esquema de
+        \texttt{Pydantic} sin dejar una fila parcial en la base de datos. Lo
+        cubre
         \texttt{test\_layer3\_engine}.
   \item \textbf{Participante duplicado.} El campo de nombre de usuario es único,
         de modo que una segunda inserción con el mismo nombre levanta un error
@@ -237,7 +239,8 @@ pruebas confirmó este comportamiento. MySQL rechazó
 la conexión del atacante, respondió que el \textit{host} no tenía permiso para
 conectarse, por lo que la consulta nunca llegó a ejecutarse. Sin embargo, los
 bytes de la sentencia \texttt{SELECT} ya habían viajado por TCP hasta el puerto
-3306, y tcpdump los capturó. Los objetivos de red correspondientes pasaron a
+3306, y \texttt{tcpdump} los capturó. Los objetivos de red correspondientes
+pasaron a
 cumplidos sin que se tocara la aplicación web.
 El escenario completo no se da por
 resuelto, porque la condición \texttt{all} exige además los objetivos de
