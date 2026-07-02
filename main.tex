@@ -44,7 +44,7 @@
 \maketitle
 
 \begin{resumen}
-La seguridad en el desarrollo de software es hoy una preocupación central y, sin
+La seguridad en el desarrollo de software es hoy una preocupación central, sin
 embargo, las malas prácticas y la falta de conocimiento persisten. Aprender de
 forma práctica cómo funcionan las vulnerabilidades resulta mucho más efectivo
 que el estudio teórico, pero las plataformas existentes para enseñar seguridad
@@ -62,7 +62,7 @@ sin \textit{flags} manuales. El sistema se organiza en cuatro capas con
 responsabilidades delimitadas: los entornos aislados (contenedores Docker en
 modo \textit{rootless}), el monitoreo pasivo (sistema de archivos, procesos,
 registros y tráfico de red mediante un \textit{sidecar} con tcpdump), un motor
-de evaluación de reglas declarativas con nodos lógicos (and, or y not), y la
+de evaluación de reglas declarativas, y la
 administración a través de una CLI, un REPL interactivo y un \textit{daemon} de
 seguimiento.
 
@@ -70,14 +70,13 @@ Los objetivos propuestos se cumplieron en su mayoría: la arquitectura modular d
 cuatro capas, la configuración declarativa, el motor de validación automática
 basado en estado y las herramientas de seguimiento y administración. El sistema
 se validó sobre tres escenarios que cubren tres categorías de ejercicio: escalada 
-de privilegios, inyección SQL e inyección de comandos. Además, se incluyen
-de pruebas automatizadas y verificaciones de contención del entorno, y se puso a
+de privilegios, inyección SQL e inyección de comandos. Además, se incluyeron pruebas 
+automatizadas y verificaciones de contención del entorno, y se puso a
 disposición de uno de los servidores del CLCERT, aunque sin una validación con 
 un curso real, que queda como principal línea pendiente. 
 Como trabajo futuro se plantea realizar pruebas realistas en un aula real e 
 incorporar más \textit{providers} de aislamiento, escenarios, monitores y 
-\textit{targets}, con la observación a nivel de \textit{kernel} mediante 
-eBPF como una dirección prometedora.
+\textit{targets}, con la observación a nivel de \textit{kernel} mediante eBPF como una dirección prometedora.
 \end{resumen}
 
 % opcional: incluir para tesis en inglés;

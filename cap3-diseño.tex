@@ -41,7 +41,7 @@ diferentes contextos e infraestructuras. La interfaz abstracta
 \texttt{EnvironmentProvider} encapsula toda la complejidad necesaria para
 distintas tecnologías de virtualización, como Docker \textit{rootless}: cambiar
 la tecnología de virtualización solo requiere implementar esa interfaz en una
-nueva clase, sin tocar el motor de evaluación ni la \textit{CLI} de
+nueva clase, sin tocar el motor de evaluación ni la CLI de
 administración. Por ejemplo, una futura implementación \texttt{PodmanProvider} o
 \texttt{KVMProvider} no tendría impacto en las capas 3 y 4.
 
@@ -59,8 +59,8 @@ evaluación central.
 Esta extensibilidad opera principalmente sobre las capas 2 y 3, pero algunos
 métodos de extracción de información requieren ampliar también la interfaz
 expuesta por la Capa 1. La incorporación del monitor de red, por ejemplo, exigió
-agregar el aprovisionamiento de un contenedor \textit{sidecar} de captura al
-\texttt{EnvironmentProvider}; un futuro monitor basado en eBPF probablemente
+agregar el despliegue de un contenedor \textit{sidecar} de captura al
+\texttt{EnvironmentProvider}. Un futuro monitor basado en eBPF probablemente
 requiera exponer un nuevo método para adjuntar programas al \textit{cgroup} del
 contenedor vulnerable. La interfaz abstracta admite estos crecimientos siempre
 que se respete el principio de pasividad: la Capa 1 expone capacidades de
@@ -69,7 +69,7 @@ observación, no las consume ni las interpreta.
 \subsubsection*{Agnóstico a la implementación}
 
 Los educadores que crean desafíos no necesitan conocer los detalles de cómo
-funciona la detección; solo deben proporcionar una imagen vulnerable y un
+funciona la detección, solo deben proporcionar una imagen vulnerable y un
 archivo YAML con las reglas declarativas. Esto reduce significativamente la
 barrera de entrada para crear contenido educativo. De igual forma, los sistemas
 vulnerables de Capa 1 no saben que están siendo monitoreados, lo cual es un
@@ -85,7 +85,7 @@ tipo de aplicación. La eficacia de cada método de detección sigue dependiendo
 las características del sistema vulnerable expuesto. La detección de inyección
 SQL \texttt{(log\_pattern + network\_payload)}, por ejemplo, asume que el motor
 de base de datos elegido permite exponer un \textit{query log} legible por el
-monitor (caso de MySQL con \texttt{general\_log}) y, cuando además se quiere
+monitor (caso de MySQL con \texttt{general\_log}) y, cuando se quiere
 inspeccionar el payload SQL a nivel de red, que la conexión
 \textit{cliente-servidor} opere sin TLS en el escenario, dado que el monitor de
 red solo expone metadatos sobre tráfico cifrado. Un escenario que use una base
@@ -138,7 +138,7 @@ Tiene acceso de lectura externo al estado de los contenedores de Capa 1. Su
 única responsabilidad es generar un registro estructurado de eventos de
 seguridad detectables: cambios en el sistema de archivos, nuevos procesos,
 entradas de log de aplicación y tráfico de red observado. Su comportamiento es
-cercano al de un SIEM dedicado al escenario de ataque.
+cercano al de un SIEM acotado a un único escenario de ataque.
 
 El principio fundamental de esta capa es la \textbf{pasividad total}: no ejecuta
 ningún comando dentro del contenedor vulnerable ni modifica su estado. Los
@@ -396,7 +396,7 @@ class EvaluationResult(BaseModel):
 El campo \texttt{progress} se calcula como la razón entre el número de
 \emph{hojas} matcheadas y el total de hojas del árbol de targets del escenario.
 Las hojas son los targets atómicos (\texttt{file\_created},
-\texttt{process\_running}, \texttt{network\_payload}, etc.); los nodos lógicos
+\texttt{process\_running}, \texttt{network\_payload}, etc.). Los nodos lógicos
 (\texttt{and}, \texttt{or}, \texttt{not}) no cuentan como hoja: aportan
 estructura pero no se incluyen en el denominador del progreso. El campo
 \texttt{completed} es \texttt{True} si y solo si la condición (\texttt{any} o
@@ -425,7 +425,7 @@ exclusivamente a través de los métodos de la interfaz
 \texttt{EnvironmentProvider}: la materialización de un entorno, su reinicio, su
 detención o destrucción, y la reconciliación del estado persistido con los
 recursos reales del proveedor. Estas operaciones son invocaciones internas que
-la Capa 4 encadena para sostener los flujos expuestos al usuario; el detalle de
+la Capa 4 encadena para sostener los flujos expuestos al usuario. El detalle de
 cómo cada acción del educador o del estudiante se traduce en una secuencia de
 invocaciones al \texttt{EnvironmentProvider} se describe en el capítulo de
 implementación.
@@ -454,7 +454,7 @@ category: str            # pwning | web | database | forensics | reversing
 
 environment:
   image: str             # imagen Docker para Capa 1a (requerido)
-  attacker_image: str    # imagen Docker para Capa 1b (opcional)
+  attacker_image: str    # imagen Docker para Capa 1b (requerido)
   log_paths: list[str]   # rutas de logs a monitorear (opcional)
   ports: list[str]       # puertos extra del vulnerable
                          # "host:container" (opcional)
@@ -494,7 +494,7 @@ componen otros targets en árboles recursivos.
     existente en la imagen original. Requiere \texttt{path} (ruta absoluta).
 
     \item[\texttt{process\_running}] Detecta un proceso activo con
-    características específicas. Requiere \texttt{euid} (effective UID esperado;
+    características específicas. Requiere \texttt{euid} (effective UID esperado,
     0 para root) y \texttt{cmd\_contains} (substring en el comando del proceso).
     Acepta \texttt{ppid\_cmd\_contains} (substring en el comando del proceso
     padre) y \texttt{ancestor\_contains} (substring en el comando de cualquier
@@ -511,14 +511,11 @@ componen otros targets en árboles recursivos.
     \texttt{field\_matches} con la clave \texttt{data}, y el matching se realiza
     con \texttt{re.IGNORECASE} sobre el texto extraído del paquete. El
     \textit{sidecar} de captura comparte el \textit{network namespace} del
-    contenedor vulnerable. Estos escenarios exigen definir un entorno atacante
-    (\texttt{attacker\_image}): es el espacio controlado desde el cual el
-    estudiante lanza el ataque y, por tanto, la fuente del tráfico que el
-    monitor observa. Opcionalmente se acota la captura con
+    contenedor vulnerable. Opcionalmente se acota la captura con
     \texttt{capture\_filter} en el bloque \texttt{environment}.
 
     \item[\texttt{network\_connection}] Detecta conexiones TCP establecidas
-    (paquete \texttt{SYN-ACK}) hacia un destino. Requiere \texttt{dst\_port};
+    (paquete \texttt{SYN-ACK}) hacia un destino. Requiere \texttt{dst\_port}, y
     acepta \texttt{dst\_ip} para restringir a una IP específica.
 \end{description}
 
@@ -537,7 +534,7 @@ que puede contener tanto tipos atómicos como otros nodos lógicos.
     \item[\texttt{not}] Matchea cuando su único sub-target no matchea. Requiere
     exactamente un sub-target. No puede aparecer como target de primer nivel del
     escenario, ya que un escenario que se completara por la ausencia de un
-    evento podría darse por exitoso sin acción alguna del estudiante; este caso
+    evento podría darse por exitoso sin acción alguna del estudiante. Este caso
     se valida al cargar el YAML.
 \end{description}
 
@@ -601,7 +598,7 @@ escenarios y la actividad acumulada. Se exponen más detalles en el capítulo de
 implementación.
 
 % PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
     \caption{[Placeholder] Flujo de datos entre las cuatro capas y el
@@ -652,7 +649,7 @@ estados de \texttt{RunStatus} a lo largo del ciclo de vida del ejercicio (desde
 \texttt{failed}, \texttt{timeout} o \texttt{stopped}, pasando por
 \texttt{running}, \texttt{stopping} y \texttt{resetting}). Mientras que los
 campos \texttt{reset\_payload} y \texttt{daemon\_message} acompañan a esas
-transiciones mediadas por el daemon. La validación de unicidad sobre el par
+transiciones mediadas por el \textit{daemon}. La validación de unicidad sobre el par
 (\texttt{scenario\_id}, \texttt{participant\_id}) para runs activos se hace a
 nivel aplicación, no de base de datos: el mismo participante puede tener
 múltiples runs históricos del mismo escenario, lo que permite reintentos sin
@@ -681,7 +678,7 @@ de qué targets matcheen o no: permite reconstruir a posteriori la secuencia de
 acciones del estudiante. Tiene índice ordinario sobre \texttt{run\_id}.
 
 % PLACEHOLDER: reemplazar por imagenes/erd.pdf (flexipwn_erd_v2.pdf de Notion).
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
     \caption{[Placeholder] Diagrama entidad-relación del modelo de datos de
@@ -716,9 +713,10 @@ interfaz en la red externa permite que los port bindings definidos en el YAML
 del escenario sean alcanzables desde el host. El contenedor vulnerable solo
 tiene presencia en la red interna.
 
-El contenedor sidecar de captura de red (Sección~\ref{sec:capa2}) no se conecta
-a ninguna red Docker directamente: comparte el namespace de red del contenedor
-vulnerable mediante \texttt{--network container:\{nombre\_vulnerable\}}, lo que
+El contenedor \textit{sidecar} de captura de red (Sección~\ref{sec:capa2}) no se
+conecta a ninguna red Docker directamente: comparte el namespace de red del
+contenedor vulnerable mediante \texttt{--network container:\{nombre\_vulnerable\}},
+lo que
 le permite observar todo el tráfico del vulnerable sin introducir interfaces
 adicionales en la topología de red del entorno.
 

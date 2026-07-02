@@ -20,13 +20,13 @@ contención) a modo de extensión más allá de lo planteado como criterio de é
 
 El criterio del Capítulo~\ref{sec:introduccion} exige cubrir al menos tres
 categorías de ejercicio con detección automática. La validación funcional se
-apoya en tres escenarios incluidos en el repositorio, cada uno representante de
-una categoría distinta: escalada de privilegios (\textit{pwning}), inyección
-SQL (\textit{web}) e inyección de comandos hacia una \textit{reverse shell}
-(\textit{web}, con énfasis en detección de red). Los tres se cargan desde
-descripciones declarativas en YAML, se validan contra imágenes vulnerables
-construidas para el proyecto y disparan sus objetivos a partir de la actividad
-real del estudiante.
+apoya en tres escenarios incluidos en el repositorio~\cite{flexipwn}, cada uno
+representante de una categoría distinta: escalada de privilegios
+(\textit{pwning}), inyección SQL (\textit{web}) e inyección de comandos hacia
+una \textit{reverse shell} (\textit{web}, con énfasis en detección de red). Los
+tres se cargan desde descripciones declarativas en YAML, se validan contra
+imágenes vulnerables construidas para el proyecto y disparan sus objetivos a
+partir de la actividad real del estudiante.
 
 Cada escenario se valida siguiendo la misma cadena: una descripción YAML define
 el entorno y los objetivos; el estudiante ejecuta el \textit{exploit} desde el
@@ -39,14 +39,15 @@ los cuatro puntos observables (creación del entorno, emisión del evento,
 coincidencia en el motor y persistencia) con el modo verboso de depuración
 activado.
 
-En este punto conviene separar los dos planos de la validación. El primero, en
-que los escenarios funcionan y disparan sus objetivos correctamente, constituye
-el criterio de evaluación propuesto en el informe del curso de Introducción al
-Trabajo de Título, y se cubre con los tres casos descritos a continuación y con
-el conjunto de \textit{tests}. El segundo, relacionado a un uso realista de un
-aula completa, es una extensión más allá de lo comprometido como evaluación. Se
-aborda parcialmente mediante pruebas unitarias y comprobaciones de la
-configuración de seguridad, y se reconoce explícitamente como trabajo pendiente.
+En este punto conviene distinguir los dos planos de la validación. El primero,
+en que los escenarios funcionan y disparan sus objetivos correctamente,
+constituye el criterio de evaluación propuesto en el informe del curso de
+Introducción al Trabajo de Título, y se cubre con los tres casos descritos a
+continuación y con el conjunto de \textit{tests}. El segundo, relacionado a un
+uso realista de un aula completa, es una extensión más allá de lo comprometido
+como evaluación. Se aborda parcialmente mediante pruebas unitarias y
+comprobaciones de la configuración de seguridad, y se reconoce explícitamente
+como trabajo pendiente.
 
 \section{Cobertura del criterio de éxito}
 
@@ -103,16 +104,15 @@ corregir manualmente.
 
 \subsection{Escalada de privilegios vía sudo vim (pwning)}
 
-El escenario se monta sobre la imagen \texttt{flexipwn/vuln-sudo},
-que ejecuta un
-servidor SSH y concede al usuario \texttt{ctfuser} permiso \texttt{NOPASSWD}
+El escenario se monta sobre la imagen \texttt{flexipwn/vuln-sudo}, que ejecuta
+un servidor SSH y concede al usuario \texttt{ctfuser} permiso \texttt{NOPASSWD}
 para ejecutar \texttt{vim} como \textit{root}. El estudiante se conecta primero
 al contenedor atacante con las credenciales del panel SSH, salta desde allí al
 contenedor vulnerable, descubre el privilegio con \texttt{sudo -l} y obtiene una
 \textit{shell} de \textit{root} mediante el \textit{shell-out} de vim
-(\texttt{sudo vim -c ':!bash'}). Con esa \textit{shell} crea un archivo bajo
-\texttt{/root} y modifica \texttt{/etc/passwd}, lo que produce
-evidencia observable de la escalada.
+(\texttt{sudo vim -c ':!bash'}). Con esa \textit{shell} crea un archivo de texto
+bajo \texttt{/root} y modifica \texttt{/etc/passwd}, lo que produce evidencia
+observable de la escalada.
 
 Este escenario dispara tres objetivos: la creación de un archivo bajo
 \texttt{/root} (\texttt{file\_created}), la modificación de \texttt{/etc/passwd}
@@ -143,7 +143,7 @@ varios objetivos por vías independientes. El \textit{walkthrough} con los dos
 \textit{payloads} y los seis objetivos asociados está documentado en el README
 del repositorio.
 
-\subsection{Inyección de comandos hacia \textit{reverse shell} (red)}
+\subsection{Inyección de comandos hacia \textit{reverse shell} (web)}
 
 El tercer escenario usa la imagen \texttt{flexipwn/vuln-command-injection}, una
 aplicación Flask con un \textit{endpoint} \texttt{/ping?host=} vulnerable a
@@ -171,7 +171,7 @@ README del repositorio.
 La robustez de FlexiPwn se respalda principalmente con un extenso abanico de
 pruebas automatizadas. Este contiene 244 funciones de prueba distribuidas en 23
 archivos bajo \texttt{src/flexipwn/tests/}, que cubren las cuatro capas de la
-arquitectura: provisión de entornos, monitores, motor de evaluación y la capa de
+arquitectura: provisión de entornos, monitores, motor de evaluación, la capa de
 persistencia y \textit{daemon}. Las pruebas de integración que requieren Docker
 \textit{rootless} en ejecución están marcadas con
 \texttt{pytest.mark.integration}
@@ -232,7 +232,7 @@ comprobarlo se diseñó un experimento en el que, en lugar de usar el formulario
 web del escenario de inyección SQL, se envía una consulta SQL directamente al
 puerto 3306 del contenedor vulnerable desde el atacante.
 
-El resultado del 26 de junio de 2026 y registrado en el runbook de
+El resultado del 26 de junio de 2026 registrado en el runbook de
 pruebas confirmó este comportamiento. MySQL rechazó
 la conexión del atacante, respondió que el \textit{host} no tenía permiso para
 conectarse, por lo que la consulta nunca llegó a ejecutarse. Sin embargo, los
@@ -247,7 +247,7 @@ información de una tabla ``sensible'', que en este experimento no existió.
 En resumen, lo que ocurrió fue lo siguiente: el detector de red
 reconoce un \textit{patrón} en el tráfico, no la ejecución exitosa del ataque.
 Se podría argumentar que en ese sentido, el sistema se comporta como una regla
-de detección tipo SIEM o SIGMA, que inspecciona la presencia de indicadores en
+de detección tipo SIEM o Sigma, que inspecciona la presencia de indicadores en
 el tráfico y no el efecto final sobre el objetivo a vulnerar. Pero al mismo
 tiempo, podría abrir la puerta a falsos positivos si se genera tráfico que
 coincida con los patrones esperados, aunque no haya logrado comprometer la

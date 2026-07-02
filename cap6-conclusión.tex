@@ -6,7 +6,7 @@ progreso del estudiante a partir del estado del sistema comprometido, sin
 recurrir a \textit{flags} manuales. Frente a los objetivos propuestos en la
 introducción, se cumplieron en su mayoría. Se construyó una arquitectura modular
 de cuatro capas multi-entorno, con responsabilidades delimitadas y agnóstica al
-sustrato de aislamiento. Se ofreció una configuración declarativa en archivos
+proveedor de entornos. Se ofreció una configuración declarativa en archivos
 YAML con la que un educador describe objetivos y condiciones de validación. Se
 implementó un motor de validación automática basado en el estado del sistema. Y
 se proveyeron herramientas de seguimiento y administración a través de
@@ -39,8 +39,8 @@ agnosticismo entre ellas, la seguridad del sistema, una experiencia de usuario
 adecuada, la escalabilidad ante más monitores, \textit{targets} y escenarios, y
 la facilidad de levantar y mantener la plataforma. Cada vez hay más puestos para
 ingenieros que incorporan la IA en su flujo de trabajo, y este proyecto apoyó
-esa formación, distinguiendo a un desarrollador ``moderno'' de los llamados
-\textit{vibe coders}.
+a esa formación, distinguiendo lo que sería el trabajo de 
+un desarrollador ``moderno'' de los llamados \textit{vibe coders}.
 
 El sistema mantiene limitaciones que conviene reconocer. El monitoreo opera por
 sondeo (\textit{polling}), de modo que introduce latencia y puede no observar
@@ -51,7 +51,7 @@ usuarios, por lo que su eficacia pedagógica en uso cotidiano queda por
 confirmar.
 
 El trabajo futuro pone el énfasis en realizar pruebas realistas del sistema, es
-decir, su uso en un aula real con estudiantes, que es la validación que esta
+decir, su uso en un aula con estudiantes, que es la validación que esta
 memoria no alcanza a completar. A partir de ahí, la arquitectura habilita la
 incorporación posterior de más \textit{providers} de aislamiento, escenarios,
 monitores y \textit{targets}, junto con otras líneas como interfaces
@@ -67,4 +67,4 @@ creciendo para incluir más y mejores formas de detección de exploits. Si se
 comenzara de nuevo, se tendría más en consideración el uso de herramientas como
 eBPF, que podrían haber permitido un alcance más cercano al monitoreo desde el
 kernel. Se encontró este tipo de herramientas a mitad del desarrollo, por lo que
-era arriesgado dedicar tiempo a explorarlas entonces.
+era arriesgado dedicar tiempo a explorarlas en esos momentos.
