@@ -240,6 +240,14 @@ proceso. Una implementación alternativa (\texttt{PodmanProvider},
 \texttt{KVMProvider}, etc.) solo debe respetar la firma de la interfaz para que
 las capas superiores puedan operarla sin cambios.
 
+\begin{figure}[h]
+    \centering
+    \resizebox{\textwidth}{!}{\input{diagramas/contrato-12.tex}}
+    \caption{Contrato Capa 1 $\rightarrow$ Capa 2: estado observable de solo
+    lectura.}
+    \label{fig:contrato-12}
+\end{figure}
+
 \subsection{Capa 2 → Capa 3: Eventos Estructurados}
 
 La Capa 2 produce eventos JSON estructurados que la Capa 3 consume. Este es el
@@ -280,7 +288,8 @@ son:
     \item \textbf{\texttt{file\_deleted}}: archivo de la imagen original
     eliminado durante el ejercicio. \texttt{details} contiene \texttt{path} y
     \texttt{kind} (valor 2). Cabe notar que este tipo de evento no tiene un
-    target correspondiente en el schema YAML: ningún escenario del sistema
+    \textit{target} correspondiente en el schema YAML: ningún escenario del
+    sistema
     evalúa la eliminación de archivos como condición de éxito en el estado
     actual.
 \end{itemize}
@@ -352,6 +361,14 @@ La Capa 2 garantiza que todo evento emitido cumple el schema antes de enviarse,
 que los eventos se emiten en orden cronológico por monitor, y que no se emiten
 duplicados para el mismo cambio de estado.
 
+\begin{figure}[h]
+    \centering
+    \resizebox{\textwidth}{!}{\input{diagramas/contrato-23.tex}}
+    \caption{Contrato Capa 2 $\rightarrow$ Capa 3: eventos estructurados
+    (\texttt{MonitorEvent}).}
+    \label{fig:contrato-23}
+\end{figure}
+
 \subsection{Capa 3 → Capa 4: Resultados de Evaluación}
 
 La Capa 3 comunica a la Capa 4 los resultados de la evaluación de condiciones de
@@ -377,14 +394,14 @@ objetivo se completó, sino qué acción concreta del estudiante lo disparó. Es
 trazabilidad es uno de los valores pedagógicos diferenciales del sistema
 respecto a los sistemas de \textit{flags}.
 
-El campo \texttt{children} se utiliza únicamente cuando el target es un nodo
-lógico (\texttt{and}, \texttt{or} o \texttt{not}). Contiene los
-\texttt{TargetResult} de los sub-targets evaluados recursivamente, lo que
-permite a la Capa 4 mostrar al educador no solo qué rama lógica matcheó, sino
-qué sub-condiciones internas fueron las que la satisficieron.
+El campo \texttt{children} se utiliza únicamente cuando el \textit{target} es un
+nodo lógico (\texttt{and}, \texttt{or} o \texttt{not}). Contiene los
+\texttt{TargetResult} de los sub-\textit{targets} evaluados recursivamente, lo
+que permite a la Capa 4 mostrar al educador no solo qué rama lógica matcheó,
+sino qué sub-condiciones internas fueron las que la satisficieron.
 
-\texttt{EvaluationResult} agrega el estado de todos los targets de un escenario
-para un participante:
+\texttt{EvaluationResult} agrega el estado de todos los \textit{targets} de un
+escenario para un participante:
 
 \begin{verbatim}
 class EvaluationResult(BaseModel):
@@ -399,22 +416,24 @@ class EvaluationResult(BaseModel):
 \end{verbatim}
 
 El campo \texttt{progress} se calcula como la razón entre el número de
-\emph{hojas} matcheadas y el total de hojas del árbol de targets del escenario.
-Las hojas son los targets atómicos (\texttt{file\_created},
+\emph{hojas} matcheadas y el total de hojas del árbol de \textit{targets} del
+escenario. Las hojas son los \textit{targets} atómicos (\texttt{file\_created},
 \texttt{process\_running}, \texttt{network\_payload}, etc.). Los nodos lógicos
 (\texttt{and}, \texttt{or}, \texttt{not}) no cuentan como hoja: aportan
 estructura pero no se incluyen en el denominador del progreso. El campo
 \texttt{completed} es \texttt{True} si y solo si la condición (\texttt{any} o
-\texttt{all}) se satisface con el conjunto de targets de primer nivel marcados
-como \texttt{matched}. Cuando un target de primer nivel es un nodo lógico, su
+\texttt{all}) se satisface con el conjunto de \textit{targets} de primer nivel
+marcados como \texttt{matched}. Cuando un \textit{target} de primer nivel es un
+nodo lógico, su
 \texttt{matched} se determina recursivamente: \texttt{and} matchea si todos sus
 hijos matchean, \texttt{or} si al menos uno, \texttt{not} si su único hijo no
 matchea.
 
 El \texttt{EvaluationEngine} invoca el callback \texttt{on\_update} cada vez que
-un target cambia de estado o cuando \texttt{completed} pasa de \texttt{False} a
-\texttt{True}. Los logros son irreversibles dentro de un \textit{run}: una vez
-que \texttt{matched} es \texttt{True}, no vuelve a \texttt{False}. La Capa 4
+un \textit{target} cambia de estado o cuando \texttt{completed} pasa de
+\texttt{False} a \texttt{True}. Los logros son irreversibles dentro de un
+\textit{run}: una vez que \texttt{matched} es \texttt{True}, no vuelve a
+\texttt{False}. La Capa 4
 consume estos resultados para persistirlos en SQLite mediante la entidad
 \texttt{TargetResult} y para emitirlos a través de un \texttt{NotificationSink}
 central que decide, según política por tipo, qué se imprime en el TTY del
@@ -424,6 +443,13 @@ matchea, la Capa 4 deriva un registro de tiempos por \textit{run}: la duración
 total y el
 tiempo de cada etapa hasta su objetivo, que se ofrece al educador en esas mismas
 vistas sin necesidad de almacenar datos adicionales.
+\begin{figure}[h]
+    \centering
+    \resizebox{\textwidth}{!}{\input{diagramas/contrato-34.tex}}
+    \caption{Contrato Capa 3 $\rightarrow$ Capa 4: resultados de evaluación.}
+    \label{fig:contrato-34}
+\end{figure}
+
 \subsection{Capa 4 → Capa 1: Ciclo de Vida}
 
 La Capa 4 es la única capa que modifica el estado de la Capa 1, y lo hace
@@ -441,6 +467,14 @@ Las consultas de estado (\texttt{get\_status}, \texttt{get\_processes},
 las utiliza para producir vistas al usuario, conviven con el uso que de ellas
 hace la Capa 2 para generar eventos. La separación se preserva porque ambas
 capas consumen información sin modificar el entorno.
+
+\begin{figure}[h]
+    \centering
+    \resizebox{\textwidth}{!}{\input{diagramas/contrato-41.tex}}
+    \caption{Contrato Capa 4 $\rightarrow$ Capa 1: ciclo de vida vía
+    \texttt{EnvironmentProvider}.}
+    \label{fig:contrato-41}
+\end{figure}
 
 \subsection{Educador → Capa 3: Archivo YAML del Escenario}
 
@@ -487,9 +521,9 @@ condition: str           # any | all (requerido, aplica solo a la
 timeout_seconds: int     # tiempo máximo en segundos (default: 1800)
 \end{verbatim}
 
-Los tipos de target disponibles se dividen en \emph{tipos atómicos}, que evalúan
-una condición concreta sobre eventos de la Capa 2, y \emph{nodos lógicos}, que
-componen otros targets en árboles recursivos.
+Los tipos de \textit{target} disponibles se dividen en \emph{tipos atómicos},
+que evalúan una condición concreta sobre eventos de la Capa 2, y \emph{nodos
+lógicos}, que componen otros \textit{targets} en árboles recursivos.
 
 \paragraph{Tipos atómicos}\mbox{}\\[0.0em]
 \begin{description}
@@ -529,27 +563,29 @@ componen otros targets en árboles recursivos.
 \end{description}
 
 \paragraph{Nodos lógicos}\mbox{}\\[1.0em]
-Los nodos lógicos componen otros targets en árboles recursivos y se identifican
-por su \texttt{type}. Sus sub-targets se definen en el campo \texttt{targets},
-que puede contener tanto tipos atómicos como otros nodos lógicos.
+Los nodos lógicos componen otros \textit{targets} en árboles recursivos y se
+identifican por su \texttt{type}. Sus sub-\textit{targets} se definen en el
+campo \texttt{targets}, que puede contener tanto tipos atómicos como otros nodos
+lógicos.
 
 \begin{description}
-    \item[\texttt{and}] Matchea cuando todos sus sub-targets matchean. Requiere
-    al menos dos sub-targets.
+    \item[\texttt{and}] Matchea cuando todos sus sub-\textit{targets} matchean.
+    Requiere al menos dos sub-\textit{targets}.
 
-    \item[\texttt{or}] Matchea cuando al menos un sub-target matchea. Requiere
-    al menos dos sub-targets.
+    \item[\texttt{or}] Matchea cuando al menos un sub-\textit{target} matchea.
+    Requiere al menos dos sub-\textit{targets}.
 
-    \item[\texttt{not}] Matchea cuando su único sub-target no matchea. Requiere
-    exactamente un sub-target. No puede aparecer como target de primer nivel del
-    escenario, ya que un escenario que se completara por la ausencia de un
-    evento podría darse por exitoso sin acción alguna del estudiante. Este caso
-    se valida al cargar el YAML.
+    \item[\texttt{not}] Matchea cuando su único sub-\textit{target} no matchea.
+    Requiere exactamente un sub-\textit{target}. No puede aparecer como
+    \textit{target} de primer nivel del escenario, ya que un escenario que se
+    completara por la ausencia de un evento podría darse por exitoso sin acción
+    alguna del estudiante. Este caso se valida al cargar el YAML.
 \end{description}
 
 El campo de primer nivel \texttt{condition} (\texttt{any} o \texttt{all}) actúa
-como azúcar sintáctica para listas planas de targets atómicos: es equivalente a
-envolver la lista en un nodo \texttt{or} o \texttt{and} respectivamente.
+como azúcar sintáctica para listas planas de \textit{targets} atómicos: es
+equivalente a envolver la lista en un nodo \texttt{or} o \texttt{and}
+respectivamente.
 
 A modo de ejemplo, el siguiente archivo YAML define un escenario de escalación
 de privilegios mediante \texttt{sudo vim}:
@@ -606,24 +642,20 @@ operaciones de validación y limpieza que el educador necesita sobre los
 escenarios y la actividad acumulada. Se exponen más detalles en el capítulo de
 implementación.
 
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
-\begin{figure}[H]
+\begin{figure}[h]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Flujo de datos entre las cuatro capas y el
-    educador: estado observable, eventos estructurados, resultados de
-    evaluación, ciclo de vida y YAML del escenario.}
-    \label{fig:flujo-capas}
+    \resizebox{\textwidth}{!}{\input{diagramas/contrato-ed3.tex}}
+    \caption{Contrato Educador $\rightarrow$ Capa 3: carga y validación del
+    escenario YAML.}
+    \label{fig:contrato-ed3}
 \end{figure}
 
 \section{Modelo de Datos}
 
-% PLACEHOLDER: reemplazar por imagenes/erd.pdf (flexipwn_erd_v2.pdf de Notion).
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Diagrama entidad-relación del modelo de datos de
-    FlexiPwn.}
+    \resizebox{\textwidth}{!}{\input{diagramas/erd.tex}}
+    \caption{Diagrama entidad-relación del modelo de datos de FlexiPwn.}
     \label{fig:erd}
 \end{figure}
 
@@ -679,26 +711,23 @@ múltiples \textit{runs} históricos del mismo escenario, lo que permite
 reintentos sin
 borrar el historial previo.
 
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Máquina de estados de un \textit{run}:
-    \texttt{pending}, \texttt{running}, \texttt{stopping},
-    \texttt{resetting}, \texttt{completed}, \texttt{failed},
-    \texttt{timeout} y \texttt{stopped}.}
+    \resizebox{0.7\textwidth}{!}{\input{diagramas/run-estados.tex}}
+    \caption{Máquina de estados de un \textit{run} (\texttt{RunStatus}), con las
+    transiciones gestionadas por el \textit{daemon}.}
     \label{fig:run-estados}
 \end{figure}
 
 \textbf{TargetResult} registra el estado de evaluación de cada objetivo
 individual dentro de un \textit{run}, incluyendo el evento exacto que causó el
 \textit{match} serializado como JSON. Cada fila corresponde a una \emph{hoja}
-del árbol de targets: el árbol del escenario se aplana en orden DFS y cada hoja
-recibe un \texttt{target\_index} secuencial. Los nodos lógicos (\texttt{and},
-\texttt{or}, \texttt{not}) no se persisten como filas, aportan estructura solo
-en memoria. El reenlace entre la hoja del modelo \texttt{Pydantic} de la Capa 3
-y su fila
-es posicional por \texttt{target\_index} en ese mismo orden DFS, lo que evita
+del árbol de \textit{targets}: el árbol del escenario se aplana en orden DFS y
+cada hoja recibe un \texttt{target\_index} secuencial. Los nodos lógicos
+(\texttt{and}, \texttt{or}, \texttt{not}) no se persisten como filas, aportan
+estructura solo en memoria. El reenlace entre la hoja del modelo
+\texttt{Pydantic} de la Capa 3 y su fila es posicional por
+\texttt{target\_index} en ese mismo orden DFS, lo que evita
 guardar un camino jerárquico en la base de datos. Sus columnas son \texttt{id},
 \texttt{run\_id}, \texttt{target\_index}, \texttt{target\_type},
 \texttt{description}, \texttt{matched}, \texttt{matched\_at},
@@ -711,8 +740,8 @@ recuperar eficientemente todos los resultados de un \textit{run}.
 \textbf{RunEvent} guarda el flujo completo de eventos del monitor asociados a un
 \textit{run} (\texttt{monitor\_type}, \texttt{event\_type},
 \texttt{details\_json}, \texttt{timestamp}). Sirve como bitácora auditable del
-ejercicio, independiente
-de qué targets matcheen o no: permite reconstruir a posteriori la secuencia de
+ejercicio, independiente de qué \textit{targets} matcheen o no: permite
+reconstruir a posteriori la secuencia de
 acciones del estudiante. Tiene índice ordinario sobre \texttt{run\_id}.
 \end{sloppypar}
 
@@ -724,14 +753,13 @@ filesystem.
 
 \subsection*{Modelo de red de doble capa}
 
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Topología de red del entorno: red interna y
-    externa con el \textit{sidecar} y los tres contenedores. El vulnerable
-    solo en la red interna, el atacante en ambas, y el \textit{sidecar}
-    compartiendo el \textit{netns} del vulnerable.}
+    \resizebox{0.7\textwidth}{!}{\input{diagramas/topologia.tex}}
+    \caption[Topología de red del entorno]{Topología de red del entorno: red interna aislada
+    (\texttt{internal=True}) y red externa (bridge), con el atacante en ambas
+    redes, el vulnerable solo en la interna, y el \textit{sidecar} compartiendo
+    el \textit{netns} del vulnerable.}
     \label{fig:topologia-red}
 \end{figure}
 

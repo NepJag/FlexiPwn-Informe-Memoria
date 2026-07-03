@@ -1,0 +1,23 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    box/.style={rounded corners=5pt, minimum height=4.6cm, text width=3.6cm,
+                text centered, inner sep=8pt, font=\sffamily\large},
+    dat/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    dlbl/.style={font=\sffamily\small, fill=white, inner sep=2.5pt, align=center},
+]
+% ── Componentes ──
+\node[box, draw=blue!40, fill=blue!6] (c1) at (0,0)
+    {\textbf{Capa 1}\\[3pt]{\normalsize Entornos\\(el vulnerable\\ignora que es\\observado)}};
+\node[box, draw=orange!60!red!40, fill=orange!5!red!3] (c2) at (12.4,0)
+    {\textbf{Capa 2}\\[3pt]{\normalsize Monitores\\(sondeo\\periódico,\\cada $2$\,s)}};
+
+% ── Canales: mecanismo de lectura → forma del dato (etiqueta en 2 líneas) ──
+\draw[dat] ([yshift=1.9cm]c1.east) -- ([yshift=1.9cm]c2.west)
+    node[midway, dlbl] {\texttt{container.diff()}\\$\to$ \{path, kind\}};
+\draw[dat] ([yshift=0.63cm]c1.east) -- ([yshift=0.63cm]c2.west)
+    node[midway, dlbl] {\texttt{container.top()}\\$\to$ \{pid, euid, ppid, cmd\}};
+\draw[dat] ([yshift=-0.63cm]c1.east) -- ([yshift=-0.63cm]c2.west)
+    node[midway, dlbl] {\textit{bind mount} de logs\\$\to$ \{source, línea\}};
+\draw[dat] ([yshift=-1.9cm]c1.east) -- ([yshift=-1.9cm]c2.west)
+    node[midway, dlbl] {\textit{sidecar} \texttt{tcpdump}\\$\to$ payload ASCII + flags};
+\end{tikzpicture}

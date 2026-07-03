@@ -1,0 +1,93 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    ent/.style={inner sep=0pt, font=\sffamily\footnotesize,
+                draw=violet!45!black, line width=0.5pt},
+    rel/.style={draw=violet!55!black, thick},
+    verb/.style={font=\sffamily\footnotesize\itshape, text=violet!55!black,
+                 fill=white, inner sep=1.5pt},
+    card/.style={font=\sffamily\footnotesize\bfseries, text=violet!45!black,
+                 fill=white, inner sep=1.5pt},
+]
+% ── Macro de tabla-entidad ──
+\newcommand{\etabla}[2]{%
+    \rowcolors{2}{violet!5}{white}%
+    \begin{tabular}{l|l|c|p{4.6cm}}
+    \rowcolor{violet!22}\multicolumn{4}{c}{\textbf{\normalsize #1}}\\
+    \hline
+    #2
+    \end{tabular}%
+}
+
+% ══ Entidades padre (arriba) ══
+\node[ent, anchor=north west] (scenario) at (-11.5, 9) {\etabla{Scenario}{
+    string   & id              & PK & UUID generado por el sistema\\
+    string   & yaml\_path       &    & referencia al archivo\\
+    string   & yaml\_content    &    & copia íntegra del YAML\\
+    string   & title           &    & \\
+    string   & description     &    & \\
+    string   & author          &    & \\
+    string   & level           &    & beginner / intermediate / advanced\\
+    string   & category        &    & pwning / web / database / \ldots\\
+    string   & image           &    & imagen Docker Capa 1a\\
+    string   & attacker\_image  &    & imagen Docker Capa 1b (opcional)\\
+    int      & timeout\_seconds &    & default 1800\\
+    datetime & created\_at      &    & \\
+}};
+
+\node[ent, anchor=north west] (participant) at (2.0, 9) {\etabla{Participant}{
+    string   & id            & PK & UUID generado por el sistema\\
+    string   & username      & UK & generado: student-a3f2c1\\
+    string   & password\_hash &    & bcrypt, nunca en texto claro\\
+    datetime & created\_at    &    & \\
+}};
+
+% ══ Entidad central ══
+\node[ent, anchor=north] (run) at (-2.0, 1.5) {\etabla{ExerciseRun}{
+    string   & id                     & PK & UUID generado por el sistema\\
+    string   & scenario\_id            & FK & \\
+    string   & participant\_id         & FK & \\
+    string   & env\_id                 & UK & run-a3f2c1b9 (único)\\
+    string   & status                 &    & pending / running / \ldots / stopped\\
+    float    & progress               &    & 0.0 a 1.0\\
+    datetime & started\_at             &    & \\
+    datetime & finished\_at            &    & estado terminal\\
+    datetime & created\_at             &    & \\
+    int      & attacker\_ssh\_port      &    & \\
+    string   & attacker\_ssh\_username  &    & \\
+    string   & attacker\_ssh\_password  &    & plaintext (SQLite del educador)\\
+    string   & reset\_payload          &    & \\
+    string   & daemon\_message         &    & \\
+}};
+
+% ══ Entidades hijas (abajo) ══
+\node[ent, anchor=north west] (target) at (-11.5, -7.5) {\etabla{TargetResult}{
+    string   & id            & PK & UUID generado por el sistema\\
+    string   & run\_id        & FK & \\
+    int      & target\_index  &    & posición en el árbol (DFS)\\
+    string   & target\_type   &    & file\_created / process\_running / \ldots\\
+    string   & description   &    & copiado del YAML al iniciar\\
+    bool     & matched       &    & irreversible dentro de un run\\
+    datetime & matched\_at    &    & \\
+    string   & trigger\_event &    & MonitorEvent serializado (JSON)\\
+    datetime & reset\_at      &    & marca los reintentos\\
+}};
+
+\node[ent, anchor=north west] (event) at (2.0, -7.5) {\etabla{RunEvent}{
+    string   & id           & PK & UUID generado por el sistema\\
+    string   & run\_id       & FK & \\
+    datetime & timestamp    &    & \\
+    string   & monitor\_type &    & filesystem / process / log / network\\
+    string   & event\_type   &    & \\
+    string   & details\_json &    & payload del evento (JSON)\\
+}};
+
+% ══ Relaciones 1 : N ══
+\draw[rel] (scenario.south) -- (run.north -| scenario.south)
+    node[card, pos=0.12] {1} node[verb, pos=0.5] {tiene} node[card, pos=0.9] {N};
+\draw[rel] (participant.south) |- (run.east)
+    node[card, pos=0.04] {1} node[verb, pos=0.42] {ejecuta} node[card, pos=0.96] {N};
+\draw[rel] (run.south west) -- (target.north)
+    node[card, pos=0.1] {1} node[verb, pos=0.5] {contiene} node[card, pos=0.9] {N};
+\draw[rel] (run.south east) -- (event.north)
+    node[card, pos=0.1] {1} node[verb, pos=0.5] {registra} node[card, pos=0.9] {N};
+\end{tikzpicture}

@@ -3,24 +3,22 @@
     every node/.style={font=\sffamily},
     arr/.style={-{Stealth[length=7pt]}, thick, gray!60!black},
     arrin/.style={-{Stealth[length=5pt]}, gray!50!black, semithick},
-    % Sub-bloque interior
     sub/.style={rounded corners=3pt, draw=#1!30, fill=white,
                 minimum height=1.2cm, text centered,
                 font=\sffamily\large, inner sep=6pt},
-    % Etiqueta de flecha
     lbl/.style={font=\sffamily\normalsize, text=gray!70!black, fill=white,
                 inner sep=2pt},
-    % Etiqueta vertical
     vlbl/.style={font=\sffamily\normalsize, text=gray!70!black, fill=white,
                  inner sep=2pt, rotate=90, anchor=south},
 ]
 
 % ── Constantes de layout ────────────────────────────
 \def\fullW{23}       % ancho capas completas
-\def\halfW{10}      % ancho cada capa media
+\def\halfW{10}       % ancho cada capa media
 \def\midgap{2.8}     % espacio horizontal entre capas 3 y 2
 \def\vgap{1.8}       % espacio vertical entre filas
 \def\cx{9}           % centro X global
+\def\midH{8.0}       % alto de la fila media (capas 2 y 3)
 
 % ═══════════════════════════════════════════════════
 % CAPA 4 — Administración (arriba, ancho completo)
@@ -31,92 +29,98 @@
 \node[font=\sffamily\bfseries\Large, text=violet!70!black]
       at ([yshift=-20pt]L4.north) (t4) {Capa 4 — Administración};
 % Sub-bloques
-\node[sub=violet, text width=4.6cm, below=10pt of t4, xshift=-5.4cm]
-      (c4a) {CLI\\[-2pt]{\normalsize Typer + Rich}};
-\node[sub=violet, text width=4.6cm, right=20pt of c4a]
+\node[sub=violet, text width=5.0cm, below=10pt of t4, xshift=-5.2cm]
+      (c4a) {CLI / REPL / \textit{daemon}\\[-2pt]{\normalsize Typer, Rich, prompt\_toolkit}};
+\node[sub=violet, text width=4.4cm, right=16pt of c4a]
       (c4b) {Persistencia\\[-2pt]{\normalsize SQLModel + SQLite}};
-\node[sub=violet, text width=4.6cm, right=20pt of c4b]
-      (c4c) {Ciclo de vida\\[-2pt]{\normalsize Scenario, Run, User}};
+\node[sub=violet, text width=4.4cm, right=16pt of c4b]
+      (c4c) {Ciclo de vida\\[-2pt]{\normalsize run start / reset / stop}};
 % Flechas internas
 \draw[arrin] (c4a.east) -- (c4b.west);
 \draw[arrin] (c4c.west) -- (c4b.east);
 % Bloque Modelos
-\node[sub=violet, text width=15.2cm, below=10pt of c4b]
-      (c4d) {Modelos: Scenario | Participant | ExerciseRun};
+\node[sub=violet, text width=18.0cm, below=10pt of c4b]
+      (c4d) {Modelos: Scenario | Participant | ExerciseRun | TargetResult | RunEvent};
 
 % ═══════════════════════════════════════════════════
 % FILA MEDIA: Capa 3 (izquierda) + Capa 2 (derecha)
 % ═══════════════════════════════════════════════════
-\pgfmathsetmacro{\midY}{-4.4/2 - \vgap - 6.0/2}
+\pgfmathsetmacro{\midY}{-4.4/2 - \vgap - \midH/2}
 
 % ── Capa 3 — Motor de evaluación ──────────────────
 \pgfmathsetmacro{\layerIIIcx}{\cx - \midgap/2 - \halfW/2}
 \node[rounded corners=5pt, draw=green!30!black!40, fill=green!5,
-      minimum width=\halfW + 9.5cm, minimum height=6.0cm,
+      minimum width=\halfW + 9.5cm, minimum height=\midH cm,
       inner sep=12pt, anchor=north]
-      (L3) at (\layerIIIcx, \midY + 6.0/2) {};
+      (L3) at (\layerIIIcx, \midY + \midH/2) {};
 \node[font=\sffamily\bfseries\Large, text=green!55!black]
       at ([yshift=-20pt]L3.north) (t3) {Capa 3 — Motor de evaluación};
 % Schema YAML → Motor de reglas → Evaluador
-\node[sub=green!70!black, text width=2cm, below=10pt of t3, xshift=-3.05cm]
+\node[sub=green!70!black, text width=2cm, below=14pt of t3, xshift=-3.15cm]
       (c3a) {Schema YAML\\[-2pt]{\normalsize Pydantic v2}};
 \node[sub=green!70!black, text width=2.4cm, right=12pt of c3a]
       (c3b) {Motor de reglas\\[-2pt]{\normalsize Python puro}};
-\node[sub=green!70!black, text width=2.2cm, right=12pt of c3b]
-      (c3c) {Evaluador\\[-2pt]{\normalsize any / all}};
+\node[sub=green!70!black, text width=2.6cm, right=12pt of c3b]
+      (c3c) {Evaluador\\[-2pt]{\normalsize \texttt{and}, \texttt{or}, \texttt{not}, any, all}};
 % Flechas internas
 \draw[arrin] (c3a.east) -- (c3b.west);
 \draw[arrin] (c3b.east) -- (c3c.west);
 % Tipos de target
-\node[sub=green!70!black, text width=7cm, below=10pt of c3b]
-      (c3d) {Tipos de target\\[-2pt]{\normalsize file\_created, process\_spawned, etc.}};
+\node[sub=green!70!black, text width=7.6cm, below=20pt of c3b]
+      (c3d) {Tipos de \textit{target}\\[-2pt]{\normalsize file\_created, process\_running, network\_payload, \ldots}};
 
-% ── Capa 2 — Monitoreo pasivo ─────────────────────
+% ── Capa 2 — Monitoreo pasivo (4 monitores en 2x2) ─
 \pgfmathsetmacro{\layerIIcx}{\cx + \midgap/2 + \halfW/2}
 \node[rounded corners=5pt, draw=orange!60!red!40, fill=orange!5!red!2,
-      minimum width=\halfW cm, minimum height=6.0cm,
+      minimum width=\halfW cm, minimum height=\midH cm,
       inner sep=12pt, anchor=north]
-      (L2) at (\layerIIcx, \midY + 6.0/2) {};
+      (L2) at (\layerIIcx, \midY + \midH/2) {};
 \node[font=\sffamily\bfseries\Large, text=orange!65!red]
       at ([yshift=-20pt]L2.north) (t2) {Capa 2 — Monitoreo pasivo};
-% Los 3 monitores
-\node[sub=orange!70!red, text width=2.2cm, below=28pt of t2, xshift=-2.4cm]
+% Grilla 2x2 de monitores
+\node[sub=orange!70!red, text width=2.4cm, below=22pt of t2, xshift=-1.95cm]
       (c2a) {Filesystem\\[-2pt]{\normalsize c.diff()}};
-\node[sub=orange!70!red, text width=1.8cm, right=6pt of c2a]
+\node[sub=orange!70!red, text width=2.4cm, right=8pt of c2a]
       (c2b) {Procesos\\[-2pt]{\normalsize c.top()}};
-\node[sub=orange!70!red, text width=1.8cm, right=6pt of c2b]
+\node[sub=orange!70!red, text width=2.4cm, below=8pt of c2a]
       (c2c) {Logs\\[-2pt]{\normalsize volúmenes}};
+\node[sub=orange!70!red, text width=2.4cm, right=8pt of c2c]
+      (c2e) {Red\\[-2pt]{\normalsize \textit{sidecar} tcpdump}};
 % Caja punteada orquestador
 \node[rounded corners=3pt, draw=orange!50!red, densely dotted, thick,
-      inner sep=8pt, fit=(c2a)(c2b)(c2c),
+      inner sep=8pt, fit=(c2a)(c2b)(c2c)(c2e),
       label={[font=\sffamily\normalsize, text=orange!60!red]above:Monitor Orquestador}]
       (orch) {};
-% Eventos JSON
-\node[sub=orange!70!red, text width=7cm, below=10pt of orch]
-      (c2d) {Eventos JSON estructurados\\[-2pt]{\normalsize timestamp, monitor\_type, etc.}};
+% Eventos JSON (anclado cerca del fondo, con margen para las flechas)
+\node[sub=orange!70!red, text width=8cm, anchor=center]
+      (c2d) at ([yshift=1.05cm]L2.south)
+      {Eventos JSON estructurados\\[-2pt]{\normalsize timestamp, monitor\_type, \ldots}};
 
 % ═══════════════════════════════════════════════════
 % CAPA 1 — Entornos virtualizados (abajo, ancho completo)
 % ═══════════════════════════════════════════════════
-\pgfmathsetmacro{\layerItop}{\midY - 6.0/2 - \vgap}
+\pgfmathsetmacro{\layerItop}{\midY - \midH/2 - \vgap}
 \node[rounded corners=5pt, draw=blue!40, fill=blue!5,
-      minimum width=\fullW cm, minimum height=3.6cm,
+      minimum width=\fullW cm, minimum height=4.2cm,
       inner sep=12pt, anchor=north]
       (L1) at (\cx, \layerItop) {};
 \node[font=\sffamily\bfseries\Large, text=blue!70!black]
-      at ([yshift=-24pt]L1.north) (t1) {Capa 1 — Entornos virtualizados};
-% 1a y 1b
-\node[sub=blue, text width=7.5cm, below=10pt of t1, xshift=-4.8cm]
-      (c1a) {\textbf{1a — Sistema vulnerable}\\[-2pt]
+      at ([yshift=-20pt]L1.north) (t1) {Capa 1 — Entornos virtualizados};
+\node[font=\sffamily\normalsize, text=blue!55!black]
+      at ([yshift=-11pt]t1.south) (t1b)
+      {Gestionados por \textit{EnvironmentProvider} (Docker \textit{rootless})};
+% 1a vulnerable (izquierda, objetivo) — 1b atacante (derecha, junto al estudiante)
+\node[sub=blue, text width=7.4cm, below=8pt of t1b, xshift=-4.9cm]
+      (c1vuln) {\textbf{1a — Sistema vulnerable}\\[-2pt]
       {\normalsize Imagen Docker personalizada}};
-\node[sub=blue, text width=7.5cm, right=2cm of c1a]
-      (c1b) {\textbf{1b — Sistema atacante}\\[-2pt]
+\node[sub=blue, text width=7.4cm, right=2cm of c1vuln]
+      (c1atk) {\textbf{1b — Sistema atacante}\\[-2pt]
       {\normalsize Entorno y herramientas del estudiante}};
-% Flecha Red
+% Flecha Red interna
 \draw[{Stealth[length=6pt]}-{Stealth[length=6pt]}, densely dashed,
-      blue!60, thick] (c1a.east) -- (c1b.west)
+      blue!60, thick] (c1vuln.east) -- (c1atk.west)
       node[midway, fill=blue!5, font=\sffamily\large,
-           text=blue!60!black, inner sep=3pt] {Red};
+           text=blue!60!black, inner sep=3pt] {Red interna};
 
 % ═══════════════════════════════════════════════════
 % FLECHAS ENTRE CAPAS
@@ -135,16 +139,15 @@
     -- (L3.east |- {$(L3.north)!0.5!(L3.south)$})
     node[midway, lbl, above=5pt] {Eventos JSON};
 
-% Capa 1 ↑ Capa 2 (3 flechas: filesystem, procesos, logs)
-\draw[arr] ([xshift=-3cm]L1.north -| L2.south)
-    -- ([xshift=-3cm]L2.south)
-    node[midway, lbl, left=1pt] {Lectura fs};
-\draw[arr] (L1.north -| L2.south)
-    -- (L2.south)
-    node[midway, lbl, left=1pt] {Lectura proc};
-\draw[arr] ([xshift=3cm]L1.north -| L2.south)
-    -- ([xshift=3cm]L2.south)
-    node[midway, lbl, left=1pt] {Lectura logs};
+% Capa 1 ↑ Capa 2 (4 flechas: filesystem, procesos, logs, red/tcpdump)
+\draw[arr] ([xshift=-3.6cm]L1.north -| L2.south) -- ([xshift=-3.6cm]L2.south)
+    node[midway, lbl, left=1pt] {fs};
+\draw[arr] ([xshift=-1.2cm]L1.north -| L2.south) -- ([xshift=-1.2cm]L2.south)
+    node[midway, lbl, left=1pt] {proc};
+\draw[arr] ([xshift=1.2cm]L1.north -| L2.south) -- ([xshift=1.2cm]L2.south)
+    node[midway, lbl, right=1pt] {logs};
+\draw[arr] ([xshift=3.6cm]L1.north -| L2.south) -- ([xshift=3.6cm]L2.south)
+    node[midway, lbl, right=1pt] {tcpdump};
 
 % Capa 4 → Capa 1 (ciclo de vida, lateral derecho) — texto vertical
 \draw[arr, rounded corners=6pt]
@@ -154,27 +157,29 @@
 % ═══════════════════════════════════════════════════
 % ACTORES (debajo de Capa 1)
 % ═══════════════════════════════════════════════════
-\node[below=1cm of L1.south, xshift=-3.5cm,
+% Estudiante bajo el atacante (derecha) — Educador a su derecha (sin cambios)
+\node[below=1cm of L1.south, xshift=5.0cm,
       font=\sffamily\large, align=center]
-      (est) {\textbf{Estudiante}\\[-2pt]{\normalsize vía CLI o SSH}};
-\node[below=1cm of L1.south, xshift=4.5cm,
+      (est) {\textbf{Estudiante}\\[-2pt]{\normalsize vía SSH}};
+\node[below=1cm of L1.south, xshift=-5.5cm,
       font=\sffamily\large, align=center]
-      (edu) {\textbf{Educador}\\[-2pt]{\normalsize vía CLI}};
+      (edu) {\textbf{Educador}\\[-2pt]{\normalsize vía CLI / REPL}};
 
-% Estudiante → Capa 1 (directo, vertical)
+% Estudiante → Sistema atacante (SSH, directo vertical)
 \draw[arr] (est.north) -- (est.north |- L1.south)
-    node[midway, lbl, left=2pt] {Ataca 1a desde 1b};
+    node[midway, lbl, left=2pt] {SSH};
 
-% Educador → Capa 4 (rodea por la derecha) — texto vertical
+% Educador → Capa 4 (sale por abajo y rodea por la derecha) — texto vertical
 \draw[arr, rounded corners=6pt]
-    (edu.east) -- ++(\fullW/2 - 4.5 + 0.9, 0) |- ([yshift=-10pt]L4.east)
-    node[pos=0.3, vlbl] {Administra};
+    (edu.south) -- ++(0, -1.3)
+    -| ([xshift=2cm]L4.east)
+    |- ([yshift=12pt]L4.east)
+    node[pos=0.72, vlbl] {Administra};
 
-% Educador → Schema YAML Capa 3 (rodea por la izquierda, pasa debajo de Estudiante) — texto vertical
+% Educador → Schema YAML Capa 3 (sale por la izquierda y sube) — texto vertical
 \draw[arr, rounded corners=6pt]
-    (edu.south) -- ++(0, -0.6)
-    -| ([xshift=-0.7cm]L3.west |- est.south)
+    (edu.west) -- ([xshift=-0.7cm]L3.west |- edu.west)
     |- (L3.west |- {$(L3.north)!0.35!(L3.south)$})
-    node[pos=0.4, vlbl] {YAML escenario};
+    node[pos=0.6, vlbl] {YAML escenario};
 
 \end{tikzpicture}

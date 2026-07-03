@@ -1,0 +1,38 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    st/.style={rounded corners=4pt, draw=violet!50, fill=violet!8,
+               minimum height=0.9cm, minimum width=2.3cm, text centered,
+               font=\sffamily\small\ttfamily},
+    fin/.style={st, draw=violet!65!black, line width=1pt, fill=violet!14},
+    tr/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    tl/.style={font=\sffamily\footnotesize, text=gray!45!black, fill=white,
+               inner sep=1.5pt, align=center},
+]
+% ── Estado inicial ──
+\fill[violet!65!black] (-6.7,0) circle (2.5pt);
+% ── Estados ──
+\node[st] (pending)   at (-4.8, 0)   {pending};
+\node[st] (running)   at (-0.4, 0)   {running};
+\node[st] (resetting) at (-0.4, 2.6) {resetting};
+\node[st] (stopping)  at (-0.4, -2.6){stopping};
+\node[fin] (completed) at (5.0, 2.0) {completed};
+\node[fin] (timeout)   at (5.0, 0.5) {timeout};
+\node[fin] (failed)    at (5.0, -1.0){failed};
+\node[fin] (stopped)   at (5.0, -2.6){stopped};
+
+% ── Transiciones ──
+\draw[tr] (-6.7,0) -- (pending);
+\draw[tr] (pending) -- (running) node[tl, pos=0.5] {\texttt{run start} /\\provisionado};
+% running → terminales (derecha)
+\draw[tr] (running) -- (completed) node[tl, pos=0.62] {targets\\cumplidos};
+\draw[tr] (running) -- (timeout)   node[tl, pos=0.7]  {límite de\\tiempo};
+\draw[tr] (running) -- (failed)    node[tl, pos=0.62] {error};
+% running → stopping → stopped
+\draw[tr] (running) -- (stopping) node[tl, pos=0.5] {stop del\\educador};
+\draw[tr] (stopping) -- (stopped);
+% running ⇄ resetting (reset: dos flechas paralelas)
+\draw[tr] ([xshift=-9pt]running.north) -- ([xshift=-9pt]resetting.south)
+    node[tl, pos=0.5, left=1pt] {\texttt{run reset}};
+\draw[tr] ([xshift=9pt]resetting.south) -- ([xshift=9pt]running.north)
+    node[tl, pos=0.5, right=1pt] {nuevo\\\texttt{env\_id}};
+\end{tikzpicture}

@@ -1,0 +1,19 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    box/.style={rounded corners=5pt, minimum height=3.0cm, text width=3.6cm,
+                text centered, inner sep=8pt, font=\sffamily\large},
+    dat/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    dlbl/.style={font=\sffamily\small, fill=white, inner sep=2.5pt, align=center},
+]
+% ── Componentes ──
+\node[box, draw=gray!50, fill=gray!8] (edu) at (0,0)
+    {\textbf{Educador}};
+\node[box, draw=green!30!black!40, fill=green!5] (c3) at (12.4,0)
+    {\textbf{Capa 3}\\[3pt]{\normalsize Motor de\\evaluación}};
+
+% ── Carga y validación del escenario (2 líneas) ──
+\draw[dat] ([yshift=0.9cm]edu.east) -- ([yshift=0.9cm]c3.west)
+    node[midway, dlbl] {YAML del escenario\\$\to$ \texttt{environment}, \textit{targets}, \texttt{condition}};
+\draw[dat] ([yshift=-0.9cm]edu.east) -- ([yshift=-0.9cm]c3.west)
+    node[midway, dlbl] {\texttt{scenario validate}\\/ \texttt{scenario load}};
+\end{tikzpicture}

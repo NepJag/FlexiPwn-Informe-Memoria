@@ -1,0 +1,76 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    l4/.style={rounded corners=5pt, draw=violet!45, fill=violet!8,
+               inner sep=6pt, text centered},
+    l3/.style={rounded corners=4pt, draw=green!45!black, fill=green!8,
+               inner sep=6pt, text centered},
+    l2/.style={rounded corners=4pt, draw=orange!60!red!50, fill=orange!8!red!3,
+               inner sep=5pt, text centered},
+    orch/.style={rounded corners=3pt, draw=orange!60!red!45, fill=white,
+                 inner sep=5pt, text centered, text width=3.6cm,
+                 font=\sffamily\footnotesize},
+    term/.style={rounded corners=3pt, draw=gray!55, fill=gray!8,
+                inner sep=5pt, text centered, text width=2.7cm,
+                font=\sffamily\small},
+    fl/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    lbl/.style={font=\sffamily\footnotesize, fill=white, inner sep=2pt, align=center},
+]
+% ═══ Capa 2: SuperMonitor + orquestadores ═══
+\node[l2, text width=8.4cm] (super) at (0, -3.2)
+    {\textbf{\texttt{SuperMonitor}} — \textit{singleton}\\[-1pt]
+     {\footnotesize 1 hilo supervisor \textperiodcentered{} \texttt{ThreadPoolExecutor}
+      (\(\le 16\) \texttt{poll\_once} concurrentes) \textperiodcentered{} cada 2\,s}};
+\node[orch] (o1) at (-4.4, -6.3)
+    {\texttt{MonitorOrchestrator}\\run 1\\[-1pt]{\scriptsize fs \textperiodcentered{} proc \textperiodcentered{} logs \textperiodcentered{} red}};
+\node[orch] (o2) at (0, -6.3)
+    {\texttt{MonitorOrchestrator}\\run 2\\[-1pt]{\scriptsize fs \textperiodcentered{} proc \textperiodcentered{} logs \textperiodcentered{} red}};
+\node[orch] (oN) at (4.4, -6.3)
+    {\texttt{MonitorOrchestrator}\\run \(N\)\\[-1pt]{\scriptsize fs \textperiodcentered{} proc \textperiodcentered{} logs \textperiodcentered{} red}};
+\draw[fl] (super.south) -- (o1.north);
+\draw[fl] (super.south) -- (o2.north) node[lbl, pos=0.5] {\texttt{poll\_once()}\\(\textit{pool})};
+\draw[fl] (super.south) -- (oN.north);
+\node[draw=orange!55!red, densely dashed, rounded corners=8pt, inner sep=9pt,
+      fit=(super)(o1)(oN),
+      label={[font=\sffamily\footnotesize, text=orange!60!red]above left:Capa 2}]
+      (c2) {};
+
+% ═══ Capa 3: EvaluationEngine ═══
+\node[l3, text width=3.7cm] (eval) at (2.6, 1.0)
+    {\texttt{EvaluationEngine}\\[-1pt]{\footnotesize Capa 3 \textperiodcentered{} evalúa reglas}};
+
+% ═══ Capa 4: DaemonLoop ═══
+\node[l4, text width=7.0cm] (loop) at (0, 3.7)
+    {\textbf{\texttt{DaemonLoop}} — Capa 4\\[-1pt]
+     {\footnotesize traduce eventos a estado; los estados terminales son irreversibles}};
+
+% ── flujo ascendente ──
+\draw[fl] (c2.north) -- (eval.south)
+    node[lbl, pos=0.55] {\texttt{MonitorEvent}};
+\draw[fl] (eval.north) -- ([xshift=2.6cm]loop.south)
+    node[lbl, pos=0.5] {\texttt{on\_update}};
+\draw[fl] ([xshift=-1.1cm]c2.north) -- ([xshift=-1.6cm]loop.south)
+    node[lbl, pos=0.62] {\texttt{MonitorEvent}\\\(\to\) \texttt{RunEvent}};
+
+% ═══ Salidas: base de datos y NotificationSink ═══
+\node[cylinder, shape border rotate=90, aspect=0.28, draw=violet!45!black,
+      fill=violet!7, minimum width=2.5cm, minimum height=2.0cm,
+      text width=2.3cm, align=center, font=\sffamily\small]
+      (db) at (-7.2, 3.7)
+      {\texttt{RunEvent}\\\texttt{TargetResult}\\\texttt{ExerciseRun}};
+\draw[fl] (loop.west) -- (db.north)
+    node[lbl, pos=0.5] {persiste};
+% feed / dashboard: comandos que el educador consulta desde la BD
+\node[term, text width=3.2cm] (feed) at (-7.2, 0.9)
+    {\texttt{feed} / \texttt{dashboard}\\{\scriptsize comandos del educador}};
+\draw[fl] (db.south) -- (feed.north) node[lbl, pos=0.5] {consulta};
+
+\node[l4, text width=3.0cm, fill=violet!12] (sink) at (8.6, 3.7)
+    {\texttt{Notification}\\\texttt{Sink}};
+\draw[fl] (loop.east) -- (sink.west)
+    node[lbl, pos=0.5] {\texttt{Notification}};
+\node[term, draw=gray!45, text=gray!55!black] (tty) at (6.9, 1.1) {TTY del educador};
+\node[term] (log) at (10.3, 1.1) {log del \textit{daemon}};
+\draw[fl, densely dashed, gray!55!black] (sink.south) -- (tty.north)
+    node[lbl, pos=0.5] {imprime};
+\draw[fl] (sink.south) -- (log.north) node[lbl, pos=0.5] {silencia\\(por defecto)};
+\end{tikzpicture}

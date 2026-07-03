@@ -66,10 +66,11 @@ El motor de evaluación de condiciones de éxito es código Python propio, sin
 dependencias externas. Los \textit{frameworks} de reglas orientados a detección
 en producción (como Sigma o Yara) tienen una expresividad que excede los
 requerimientos de FlexiPwn y una curva de aprendizaje que complicaría la
-creación de escenarios. El motor implementa los tipos de target atómicos y los
-nodos lógicos \texttt{and}/\texttt{or}/\texttt{not} descritos en el capítulo
-\ref{sec:diseño}, y es completamente independiente de la infraestructura de
-contenedores: sus pruebas corren en memoria, sin necesidad de Docker.
+creación de escenarios. El motor implementa los tipos de \textit{target}
+atómicos y los nodos lógicos \texttt{and}/\texttt{or}/\texttt{not} descritos en
+el capítulo \ref{sec:diseño}, y es completamente independiente de la
+infraestructura de contenedores: sus pruebas corren en memoria, sin necesidad de
+Docker.
 
 \subsection{Capa 4: Administración}
 
@@ -506,13 +507,12 @@ el \textit{teardown}. Al ejecutarlo desde una ruta que no coincide con el
 perfil, el proceso corre sin limitaciones y la destrucción del entorno puede
 terminarlo de forma limpia.
 
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Pipeline de captura de red: \texttt{tcpdump}
+    \resizebox{0.8\textwidth}{!}{\input{diagramas/pipeline-red.tex}}
+    \caption[Pipeline de captura de red]{Pipeline de captura de red: \texttt{tcpdump}
     escribe \texttt{traffic.txt} en un \textit{bind mount} desde el
-    \textit{netns} del vulnerable, y el \textit{parser} emite
+    \textit{netns} del vulnerable. El monitor emite
     \texttt{network\_payload} y \texttt{network\_connection}.}
     \label{fig:pipeline-red}
 \end{figure}
@@ -612,7 +612,7 @@ actual.
 % [Descripción del EvaluationEngine, tipos de target implementados,
 % condiciones any/all, evaluadores de Capa 3]
 
-Los tipos de target implementados en el estado actual del sistema son:
+Los tipos de \textit{target} implementados en el estado actual del sistema son:
 
 \begin{description}
     \item[\texttt{file\_created}, \texttt{file\_modified}] Operan sobre eventos
@@ -791,11 +791,10 @@ inesperadamente y un \textit{poll} en vuelo reporta
 \textit{loop} preserva el estado terminal y no lo sobrescribe con
 \texttt{stopped}.
 
-% PLACEHOLDER: reemplazar la imagen por el diagrama real (ver Paso 4).
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\textwidth, height=0.4\textwidth]{imagenes/escudoU2014.pdf}
-    \caption{[Placeholder] Componentes del \textit{daemon}:
+    \resizebox{\textwidth}{!}{\input{diagramas/componentes-daemon.tex}}
+    \caption[Componentes del \textit{daemon}]{Componentes del \textit{daemon}:
     \texttt{DaemonLoop} y \texttt{SuperMonitor} (con su
     \textit{ThreadPoolExecutor}) coordinan $N$ \texttt{MonitorOrchestrator}
     y los cuatro monitores; el flujo de \texttt{MonitorEvent} pasa por el

@@ -1,0 +1,21 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    box/.style={rounded corners=5pt, minimum height=3.9cm, text width=3.6cm,
+                text centered, inner sep=8pt, font=\sffamily\large},
+    dat/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    dlbl/.style={font=\sffamily\small, fill=white, inner sep=2.5pt, align=center},
+]
+% ── Componentes ──
+\node[box, draw=violet!40, fill=violet!6] (c4) at (0,0)
+    {\textbf{Capa 4}\\[3pt]{\normalsize Administración}};
+\node[box, draw=blue!40, fill=blue!6] (c1) at (12.4,0)
+    {\textbf{Capa 1}\\[3pt]{\normalsize Entornos}};
+
+% ── Operaciones de ciclo de vida vía EnvironmentProvider (2 líneas) ──
+\draw[dat] ([yshift=1.35cm]c4.east) -- ([yshift=1.35cm]c1.west)
+    node[midway, dlbl] {\texttt{create(scenario, participant)}\\$\to$ \texttt{Environment}: \{env\_id, ssh\}};
+\draw[dat] ([yshift=0.0cm]c4.east) -- ([yshift=0.0cm]c1.west)
+    node[midway, dlbl] {\texttt{reset()}\\$=$ destroy + create (nuevo \texttt{env\_id})};
+\draw[dat] ([yshift=-1.35cm]c4.east) -- ([yshift=-1.35cm]c1.west)
+    node[midway, dlbl] {\texttt{destroy(env\_id)}};
+\end{tikzpicture}

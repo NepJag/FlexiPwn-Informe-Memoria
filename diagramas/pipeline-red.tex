@@ -1,0 +1,53 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    cont/.style={rounded corners=4pt, draw=blue!45, fill=blue!10,
+                 minimum height=1.15cm, text width=3.0cm, text centered,
+                 inner sep=5pt},
+    side/.style={rounded corners=4pt, draw=orange!60!red!50, fill=orange!7!red!3,
+                 minimum height=1.15cm, text width=3.0cm, text centered,
+                 inner sep=5pt},
+    mon/.style={rounded corners=4pt, draw=orange!60!red!50, fill=orange!8!red!3,
+                minimum height=1.25cm, text width=3.0cm, text centered,
+                inner sep=5pt},
+    file/.style={draw=gray!55, fill=gray!10, minimum height=1.15cm,
+                 text width=2.7cm, text centered, inner sep=5pt},
+    ev/.style={rounded corners=4pt, draw=green!45!black, fill=green!8,
+               minimum height=0.85cm, text width=3.7cm, text centered,
+               inner sep=5pt, font=\sffamily\small\ttfamily},
+    fl/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    lbl/.style={font=\sffamily\footnotesize, fill=white, inner sep=2.5pt, align=center},
+]
+% ── netns compartido (vulnerable + sidecar) ──
+\node[cont] (vuln) at (0, 3.15)
+    {\textbf{1a — Vulnerable}\\[-1pt]{\footnotesize imagen objetivo}};
+\node[side] (side) at (0, -1.15)
+    {\textbf{\textit{Sidecar}} (netshoot)\\[-1pt]{\footnotesize \texttt{tcpdump -i any -A -n -l}}};
+\draw[fl, densely dashed, {Stealth[length=6pt]}-{Stealth[length=6pt]}]
+    (vuln.south) -- (side.north)
+    node[lbl, pos=0.5] {mismo \textit{netns}\\\texttt{-{}-network container:}};
+\node[draw=blue!45, densely dashed, rounded corners=8pt, inner sep=10pt,
+      fit=(vuln)(side),
+      label={[font=\sffamily\footnotesize, text=blue!55!black]below:\textit{netns} del vulnerable}]
+      (ns) {};
+
+% ── traffic.txt (bind mount) ──
+\node[file] (traf) at (5.6, 0)
+    {\texttt{traffic.txt}\\[-1pt]{\footnotesize \textit{bind mount}, \texttt{0o700}}};
+
+% ── NetworkMonitor (Capa 2) ──
+\node[mon] (nm) at (11.8, 0)
+    {\texttt{NetworkMonitor}\\[-1pt]{\footnotesize Capa 2}};
+
+% ── Eventos (Capa 3), debajo del monitor ──
+\node[ev] (pay) at (9.6, -2.7)   {network\_payload};
+\node[ev] (con) at (14.3, -2.7)  {network\_connection};
+
+% ── Flechas del pipeline ──
+\draw[fl] (ns.east) -- (traf.west)
+    node[lbl, pos=0.5] {escribe\\(\texttt{-l})};
+\draw[fl] (traf.east) -- (nm.west)
+    node[lbl, pos=0.5] {lectura\\incremental};
+\draw[fl] (nm.south) -- (pay.north)
+    node[lbl, pos=0.5] {\textit{parsing}\\por paquete};
+\draw[fl] (nm.south) -- (con.north);
+\end{tikzpicture}

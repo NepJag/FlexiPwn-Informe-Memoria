@@ -1,0 +1,19 @@
+\begin{tikzpicture}[
+    every node/.style={font=\sffamily},
+    box/.style={rounded corners=5pt, minimum height=3.0cm, text width=3.6cm,
+                text centered, inner sep=8pt, font=\sffamily\large},
+    dat/.style={-{Stealth[length=6pt]}, thick, gray!55!black},
+    dlbl/.style={font=\sffamily\small, fill=white, inner sep=2.5pt, align=center},
+]
+% ── Componentes ──
+\node[box, draw=orange!60!red!40, fill=orange!5!red!3] (c2) at (0,0)
+    {\textbf{Capa 2}\\[3pt]{\normalsize Monitores}};
+\node[box, draw=green!30!black!40, fill=green!5] (c3) at (12.4,0)
+    {\textbf{Capa 3}\\[3pt]{\normalsize Motor de\\evaluación\\(lógica pura)}};
+
+% ── Envelope MonitorEvent (etiqueta en 2 líneas) ──
+\draw[dat] ([yshift=0.9cm]c2.east) -- ([yshift=0.9cm]c3.west)
+    node[midway, dlbl] {\texttt{MonitorEvent}\\$\to$ \{monitor\_type, event\_type, timestamp\}};
+\draw[dat] ([yshift=-0.9cm]c2.east) -- ([yshift=-0.9cm]c3.west)
+    node[midway, dlbl] {\texttt{details}\\$\to$ dict con campos según el tipo de evento};
+\end{tikzpicture}
