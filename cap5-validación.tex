@@ -330,8 +330,9 @@ vectores de ataque conocidos y el perfil \texttt{seccomp} recorta la superficie 
 sistema disponibles. En conjunto disminuyen la probabilidad y el alcance de un
 incidente, pero no eliminan el riesgo de un fallo en el \textit{kernel}
 compartido. Una contención estricta frente a ese caso exigiría aislamiento por
-hipervisor, como microVMs, o un \textit{kernel} en espacio de usuario, obviamente con el
-costo asociado.
+hipervisor, como microVMs, o un \textit{kernel} en espacio de usuario (por
+ejemplo, gVisor), obviamente con el costo asociado de un mayor uso de
+recursos.
 
 \section{Pruebas en infraestructura real}
 
