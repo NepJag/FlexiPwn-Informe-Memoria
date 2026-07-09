@@ -247,6 +247,15 @@ resuelto, porque la condición \texttt{all} exige además los objetivos de
 \textit{log}, que sí requieren el flujo por la aplicación, y la respuesta con la
 información de una tabla ``sensible'', que en este experimento no existió.
 
+Además, el experimento invita a considerar el modelo de amenaza del detector.
+Como la evaluación observa cada paquete de forma aislada, condicionar la
+detección a la dirección de origen del tráfico no la haría más robusta: un
+atacante dentro del entorno puede forjar paquetes con una dirección de origen
+arbitraria, y bastaría uno construido a mano para gatillar la coincidencia. La
+garantía no proviene entonces del paquete individual, sino de la combinación
+de objetivos, donde los objetivos de \textit{log} exigen el flujo por la 
+aplicación y acompañan a los de red.
+
 En resumen, lo que ocurrió fue lo siguiente: el detector de red
 reconoce un \textit{patrón} en el tráfico, no la ejecución exitosa del ataque.
 Se podría argumentar que en ese sentido, el sistema se comporta como una regla
@@ -257,6 +266,27 @@ coincida con los patrones esperados, aunque no haya logrado comprometer la
 aplicación. Por ello, es importante que el educador configure adecuadamente los
 escenarios y los objetivos para minimizar la posibilidad de detecciones
 erróneas.
+
+De cara al trabajo futuro, el problema del ruido admite varias líneas de
+mejora. Una de ellas consistiría en evaluar secuencias de paquetes en lugar del
+paquete aislado, reensamblando el flujo TCP antes de aplicar los patrones, lo
+que reduce las coincidencias falsas sobre fragmentos sueltos. Otra
+consiste en acotar la captura a la interfaz del camino
+legítimo entre la aplicación y la base de datos: en la arquitectura actual ese
+camino es la interfaz de \textit{loopback}, de modo que restringir la captura a ella
+aísla el tráfico real sin separar contenedores. Esto también añadiría resistencia 
+a la falsificación de origen, porque la interfaz de llegada de un paquete no se
+puede suplantar, a diferencia de su dirección de origen. No obstante, el
+costo de llevarlo a cabo sería doble: la detección deja de ser independiente 
+del camino, ya que solo observa lo que la aplicación ejecuta de verdad, y no 
+se generaliza a escenarios que vigilan
+tráfico entre contenedores, como una \textit{reverse shell}, por lo que la
+interfaz debería ser configurable por escenario. Una interfaz verdaderamente
+exclusiva para ese enlace, en cambio, supone separar la aplicación y la base
+de datos en contenedores distintos unidos por una red dedicada. Por último, un
+monitoreo a nivel de \textit{kernel} mediante eBPF observaría la ejecución
+efectiva de las consultas en lugar de su presencia en el cable, más difícil de
+inducir con tráfico fabricado.
 
 \subsection{Resistencia y contención del entorno}
 
@@ -281,7 +311,27 @@ superficie que el \textit{exploit} de Copy Fail necesita para arrancar.
 Es importante delimitar el alcance de esta comprobación. Se trata de una
 verificación de configuración, no de una prueba de concepto que
 ejecute un \textit{exploit} completo: el \textit{script} no lanza ningún ataque,
-sino que consulta el estado del runtime y de los controles del \textit{kernel}.
+sino que consulta el estado del \textit{runtime} y de los controles del \textit{kernel}.
+
+Sin embargo, esta contención tiene un límite estructural que hay que notar. Los \textit{namespaces} y el modo \textit{rootless} aíslan la
+identidad y los recursos que el contenedor observa, pero todos los
+contenedores comparten el \textit{kernel} del \textit{host}. Una
+vulnerabilidad en una llamada al sistema alcanzable desde el contenedor se
+ejecuta en el propio \textit{kernel}, con privilegio total, de modo que el
+aislamiento de \textit{namespace} no la contiene. En otras palabras, el
+\textit{rootless} responde por quién es el \textit{root} del contenedor frente
+al \textit{host}, pero no por la solidez del \textit{kernel} que ambos
+comparten.
+
+Frente a ese escenario, los controles descritos operan como defensa en
+profundidad. El modo \textit{rootless} reduce el impacto de un escape, el
+descarte de \texttt{CAP\_SYS\_ADMIN} cierra la palanca de la mayoría de los
+vectores de ataque conocidos y el perfil \texttt{seccomp} recorta la superficie de llamadas al
+sistema disponibles. En conjunto disminuyen la probabilidad y el alcance de un
+incidente, pero no eliminan el riesgo de un fallo en el \textit{kernel}
+compartido. Una contención estricta frente a ese caso exigiría aislamiento por
+hipervisor, como microVMs, o un \textit{kernel} en espacio de usuario, obviamente con el
+costo asociado.
 
 \section{Pruebas en infraestructura real}
 
