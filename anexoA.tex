@@ -1,2 +1,33 @@
-\chapter{Anexo}
-\lipsum[50-50]
+\chapter{El repositorio de FlexiPwn}
+\label{anexo:repositorio}
+
+El código completo de FlexiPwn es público y se distribuye bajo licencia GNU
+GPL v3 en \url{https://github.com/NepJag/FlexiPwn}~\cite{flexipwn}. Este anexo
+ofrece una guía para navegar el repositorio, fijar la versión de referencia y reproducir los
+resultados, de modo que cualquier lector pueda contrastar las afirmaciones del
+texto contra la implementación real.
+
+La versión que corresponde a este informe queda fijada en el commit
+\texttt{f26bc98} del repositorio. Trabajar sobre esa referencia asegura que
+las rutas de archivo y los números de línea citados a lo largo del texto
+coincidan con el código, con independencia de la evolución posterior del
+proyecto.
+
+La organización del código sigue la arquitectura de cuatro capas del
+Capítulo~\ref{sec:implementacion}. El directorio \texttt{src/flexipwn/}
+contiene una carpeta por capa: \texttt{layer1/} para el aislamiento y la
+provisión de entornos, \texttt{layer2/} para los monitores, \texttt{layer3/}
+para el motor de evaluación y los \textit{targets}, y \texttt{layer4/} para la
+persistencia, el \textit{daemon} y la interfaz. Los escenarios de ejemplo
+viven en \texttt{scenarios/} como archivos YAML, las imágenes de los
+contenedores en \texttt{docker/} y la documentación operativa en
+\texttt{docs/}, lo que permite leer el informe y el código en paralelo.
+
+Para reproducir los resultados, el \texttt{README} describe la instalación y
+el \textit{script} \texttt{setup-images.sh} construye las imágenes necesarias.
+El runbook \texttt{docs/tests-w13+.md} detalla el recorrido de validación
+\textit{end-to-end} y los experimentos de robustez referidos en el
+Capítulo~\ref{sec:validacion}, y el \textit{script}
+\texttt{scripts/containment\_check.sh} reproduce la verificación de contención
+del entorno. Las pruebas de concepto que precedieron al sistema se conservan
+en un repositorio aparte~\cite{flexipwn-poc}.
