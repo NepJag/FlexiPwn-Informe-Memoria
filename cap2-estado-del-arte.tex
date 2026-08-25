@@ -91,15 +91,27 @@ Tectonic      & Sí  & Gratuito & Multicriterio & Sí \\ \hline
 
 \subsection{Valor Pedagógico}
 
-La validación automática basada en estado ofrece ventajas pedagógicas
-significativas sobre los sistemas tradicionales de \textit{flags}. Mientras que
-las \textit{flags} solo indican si un estudiante alcanzó un objetivo final, un
-sistema de monitoreo de estado registra la evolución completa del ataque: qué
-\textit{payloads} envió por la red, qué vulnerabilidades intentó explotar, o qué
-archivos
-modificó. Esta trazabilidad permite a los educadores entender no solo si un
-estudiante tuvo éxito, sino \textbf{cómo} lo logró, detectar dificultades
-comunes y proporcionar retroalimentación más específica y formativa.
+La validación basada en estado y la validación por \textit{flags} se distinguen
+en dos planos. En el primero, qué se verifica: una \textit{flag} comprueba que
+el estudiante posee una cadena de texto o clave, es decir, verifica lo que el estudiante
+declara; mientras que la observación del estado comprueba que el sistema atacado cambió, es
+decir, verifica lo que ocurrió. En el segundo plano, cuánto queda registrado: una
+\textit{flag} produce un único evento terminal, en tanto que la observación
+continua deja una traza con marca temporal de los objetivos que se fueron cumpliendo,
+junto con el evento que los disparó, ya sea un \textit{payload} enviado por la
+red, un proceso creado o un archivo modificado.
+
+Esa traza es lo que la plataforma efectivamente produce y persiste, y es
+verificable en los resultados del Capítulo~\ref{sec:validacion}. La hipótesis
+pedagógica respecto a que este seguimiento permitiría al educador
+detectar dificultades comunes y entregar retroalimentación más específica que
+un resultado binario, no se puso a prueba en este trabajo, porque la plataforma
+no se usó con estudiantes reales. Queda entonces planteada como línea de evaluación
+futura (Sección~\ref{sec:discusion}). Además, conviene notar el alcance de esa
+traza: lo que se registra son los eventos observados sobre el sistema objetivo,
+y no cada paso que el estudiante ejecuta en su terminal, como sí hacen otras
+plataformas. Nada impide incorporar ese registro en una extensión posterior,
+pero no forma parte del alcance de este trabajo.
 
 \subsection{Contribución Técnica}
 

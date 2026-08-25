@@ -248,6 +248,44 @@ las capas superiores puedan operarla sin cambios.
     \label{fig:contrato-12}
 \end{figure}
 
+Este contrato se completa con lo que el educador debe garantizar en la imagen
+que entrega. Para que un sistema vulnerable resulte observable sin
+modificarlo, la imagen debe cumplir con lo siguiente:
+
+\begin{itemize}
+    \item \textbf{Punto de entrada alcanzable.} Debe exponer un servicio al que
+    el estudiante llegue desde el contenedor atacante, como un servidor SSH o
+    una aplicación web.
+
+    \item \textbf{Arranque observable.} Debe declarar un \texttt{HEALTHCHECK} o
+    admitir un tiempo de espera de inicio suficiente, porque los monitores
+    toman una línea base al crear el entorno y un servicio a medio inicializar
+    la contamina.
+
+    \item \textbf{Estado inicial estable.} Los procesos y archivos que cambian
+    por sí solos, sin intervención del estudiante, producen eventos que el
+    motor no distingue de un avance real.
+
+    \item \textbf{Registros en archivos declarados.} Si el escenario define
+    objetivos sobre registros, el servicio debe escribirlos en archivos cuyas
+    rutas se declaren en la descripción del escenario, y el directorio que los
+    contiene debe existir en la imagen con permisos de escritura. Ese
+    directorio se monta desde el anfitrión, de modo que su contenido queda
+    fuera de la capa de escritura del contenedor y no alimenta los objetivos de
+    sistema de archivos.
+
+    \item \textbf{Tráfico legible.} Si el escenario define objetivos de red, el
+    tráfico relevante debe viajar en claro, sin TLS, por la red del escenario.
+
+    \item \textbf{Sin privilegios especiales.} La imagen se ejecuta bajo un
+    \textit{runtime} sin privilegios, de modo que no puede depender de
+    capacidades adicionales, del modo privilegiado ni del socket del
+    \textit{daemon} de contenedores.
+\end{itemize}
+
+El repositorio del proyecto documenta estos requisitos junto a las imágenes de
+referencia que los ilustran~\cite{flexipwn}.
+
 \subsection{Capa 2 → Capa 3: Eventos Estructurados}
 
 La Capa 2 produce eventos JSON estructurados que la Capa 3 consume. Este es el
