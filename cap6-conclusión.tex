@@ -11,10 +11,11 @@ YAML con la que un educador describe objetivos y condiciones de validación. Se
 implementó un motor de validación automática basado en el estado del sistema. Y
 se proveyeron herramientas de seguimiento y administración a través de
 interfaces de línea de comandos, un REPL interactivo y un \textit{daemon} de
-seguimiento. El objetivo de poner la plataforma a disposición del CLCERT quedó
-parcial: la herramienta se entregó y se probó su resistencia sobre la
-infraestructura del laboratorio, pero sin un curso ni usuarios reales que la
-ejerciten.
+seguimiento. El objetivo de poner la plataforma a disposición del CLCERT se
+alcanzó hasta la instalación y la verificación de su operación sobre la
+infraestructura del laboratorio, con los escenarios ejecutándose de extremo a
+extremo, el acceso remoto probado y la resistencia del entorno comprobada. Su uso con 
+un curso y usuarios reales queda pendiente.
 
 A lo largo del trabajo se enfrentaron varios desafíos que dejaron aprendizajes
 concretos. Crear un sistema de detección de \textit{exploits} no es sencillo:
@@ -57,7 +58,11 @@ decir, su uso en un aula con estudiantes, que es la validación que esta
 memoria no alcanza a completar. A partir de ahí, la arquitectura habilita la
 incorporación posterior de más \textit{providers} de aislamiento, escenarios,
 monitores y \textit{targets}, junto con otras líneas como interfaces
-alternativas o mecanismos de detección complementarios.
+alternativas o mecanismos de detección complementarios. Queda espacio también
+para bajar el piso técnico que hoy exige la plataforma: un conjunto de imágenes
+base compatibles y un comando que genere el esqueleto del archivo YAML
+permitirían a un educador partir de una plantilla en lugar de construir el
+escenario desde cero.
 
 El desarrollo de esta memoria resulta valioso porque expande el abanico de
 plataformas educativas para enseñar ciberseguridad ofensiva, con gran

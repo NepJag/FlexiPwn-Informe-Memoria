@@ -60,8 +60,9 @@ aprendizaje práctico de vulnerabilidades sin depender de validaciones manuales.
     
     \item Desarrollar un sistema de configuración declarativa que permita
     definir las condiciones de éxito de un ejercicio mediante archivos YAML,
-    haciendo que la plataforma sea accesible incluso a educadores sin
-    conocimiento técnico profundo.
+    de modo que crear un ejercicio con validación automática requiera
+    describir qué debe observarse y no programar la lógica de detección ni
+    modificar la plataforma.
 
     \item Implementar el motor de validación automática que evalúe el estado de
     los sistemas comprometidos, determinando el progreso sin depender de
@@ -72,8 +73,12 @@ aprendizaje práctico de vulnerabilidades sin depender de validaciones manuales.
     ejercicios y administración del sistema para educadores y estudiantes,
     implementadas inicialmente mediante línea de comandos.
 
-    \item Poner la plataforma a disposición del laboratorio de ciberseguridad
-    CLCERT para su evaluación en una instancia real de uso.
+    \item Desplegar la plataforma en la infraestructura del laboratorio de
+    ciberseguridad CLCERT y verificar allí su operación completa: instalación,
+    ejecución de extremo a extremo de los escenarios y acceso remoto de un
+    participante.\footnote{Este objetivo, formulado originalmente como ``poner
+    la plataforma a disposición del CLCERT para su evaluación en una instancia
+    real de uso'', se precisa aquí con un criterio verificable.}
 \end{enumerate}
 
 \section{Evaluación}
@@ -159,6 +164,29 @@ es fundamental para lograr flexibilidad y extensibilidad.
     herramientas de línea de comandos para interactuar con sus respectivos
     entornos y monitorear el avance.
 \end{enumerate}
+
+\subsection{Perfil de usuario esperado}
+\label{sec:perfil-usuario}
+
+FlexiPwn asume un educador con manejo de línea de comandos y familiaridad
+básica con contenedores: debe poder instalar Docker en modo \textit{rootless}
+una vez, construir o adaptar una imagen del sistema vulnerable y escribir un
+archivo YAML. No es el tipo de usuario final que solo tiene que saber usar una aplicación web, sino
+que corresponde al perfil habitual de quien dicta un curso de
+seguridad ofensiva. Lo que la plataforma elimina es la necesidad de programar
+el mecanismo de detección, es decir, configurar mecanismos para observar el
+sistema objetivo, capturar y correlacionar eventos, y escribir el código que decide cuándo un objetivo se
+cumple, que es la parte costosa de montar validación automática. Ese es el
+sentido en que la plataforma resulta accesible: no porque rebaje los
+requisitos de infraestructura, sino porque sustituye el trabajo de
+instrumentación por una descripción declarativa.
+
+Además, ese piso técnico podría considerarse el más bajo entre las alternativas
+autohospedables analizadas en el Capítulo~\ref{sec:estado-del-arte}: CTFd
+requiere desplegar un servicio web con base de datos, y los \textit{cyber
+ranges} como Tectonic o CyberRangeCZ se operan con herramientas de
+infraestructura como código, entre ellas Packer, Terraform y Ansible, sobre
+proveedores de nube o hipervisores.
 
 \section{Declaración de uso de inteligencia artificial}
 

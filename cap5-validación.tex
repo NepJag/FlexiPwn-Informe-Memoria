@@ -17,6 +17,7 @@ configuración, y su uso en un entorno más realista (acceso remoto, resistencia
 contención) a modo de extensión más allá de lo planteado como criterio de éxito.
 
 \section{Metodología y criterios de validación}
+\label{sec:metodologia-validacion}
 
 El criterio del Capítulo~\ref{sec:introduccion} exige cubrir al menos tres
 categorías de ejercicio con detección automática. La validación funcional se
@@ -181,6 +182,7 @@ ejecutan sin la necesidad de levantar contenedores.
 \end{sloppypar}
 
 \subsection{Casos borde cubiertos por pruebas unitarias}
+\label{sec:casos-borde}
 
 Varios de los escenarios de fallo previstos se cubren a nivel unitario, con
 \textit{mocks} que reproducen la condición sin levantar la infraestructura real.
@@ -224,6 +226,7 @@ en la sección de
 trabajo pendiente.
 
 \subsection{Detección independiente del camino (la ``trampa'' de tcpdump)}
+\label{sec:trampa-tcpdump}
 
 Una propiedad o limitación relevante del monitor de red es que su detección no
 depende del camino que tome el \textit{payload}. El \textit{sidecar} de captura
@@ -289,6 +292,7 @@ efectiva de las consultas en lugar de su presencia en el cable, más difícil de
 inducir con tráfico fabricado.
 
 \subsection{Resistencia y contención del entorno}
+\label{sec:contencion}
 
 La afirmación de que el modo \textit{rootless} contiene un eventual escape de
 contenedor, hecha en el Capítulo~\ref{sec:implementacion}, se respalda con un
@@ -335,6 +339,24 @@ ejemplo, gVisor), obviamente con el costo asociado de un mayor uso de
 recursos.
 
 \section{Pruebas en infraestructura real}
+\label{sec:infra-real}
+
+La puesta a disposición de la plataforma admite tres grados, que conviene
+distinguir para precisar hasta dónde llegó este trabajo. El primero es
+\textbf{entregada}: el código, la documentación y la guía de despliegue quedan
+disponibles para el laboratorio. El segundo es \textbf{instalada}: la
+plataforma opera sobre la infraestructura del CLCERT, con los escenarios
+ejecutándose de extremo a extremo y el acceso remoto verificado. El tercero es
+\textbf{usada}: un curso con estudiantes reales ejercita la plataforma en
+condiciones de aula. Este trabajo alcanzó el segundo grado, mientras que el tercero se
+detalla como trabajo futuro en la Sección~\ref{sec:trabajo-futuro-validacion}.
+
+Sobre esa infraestructura se ejecutaron los tres escenarios de referencia de
+extremo a extremo, siguiendo la misma cadena descrita en la
+Sección~\ref{sec:metodologia-validacion}: creación del entorno, explotación
+desde el contenedor atacante y persistencia de los objetivos cumplidos. Se
+verificó además la exposición del despliegue frente a las vías de escape
+analizadas en la Sección~\ref{sec:contencion}.
 
 \subsection{Autoprueba de acceso remoto}
 
@@ -357,6 +379,7 @@ curso.
 % (docs/acceso-remoto-netbird.md) — pendiente, fuera de esta sesión
 
 \subsection{Trabajo futuro}
+\label{sec:trabajo-futuro-validacion}
 
 En primer lugar, no se ha realizado una sesión piloto con un grupo de
 estudiantes reales ni un despliegue con un curso real. Una prueba de este tipo
@@ -386,6 +409,7 @@ fina y más difícil de eludir que la detección actual. Su exploración excedi�
 tiempo disponible y se retoma en las conclusiones.
 
 \section{Discusión}
+\label{sec:discusion}
 
 Los tres escenarios validados demuestran que FlexiPwn satisface el criterio de
 éxito declarado en el Capítulo~\ref{sec:introduccion}: cubren tres categorías de
