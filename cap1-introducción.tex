@@ -111,6 +111,33 @@ imágenes de sistemas vulnerables y definir reglas de validación mediante
 archivos YAML, generando automáticamente entornos de práctica personalizados con
 validación automática.
 
+El mecanismo que hace posible esa validación se apoya en una cadena de cuatro
+pasos, ilustrada en la Figura~\ref{fig:cadena-validacion}. La plataforma observa
+el sistema atacado desde fuera, sin instalar nada dentro ni pedirle
+colaboración, y mira cuatro cosas: los archivos que cambian, los procesos que
+aparecen, lo que el sistema escribe en sus registros y el tráfico que circula
+por la red del ejercicio. Cada observación se convierte en un evento con
+fecha y contenido. Ese evento se compara con las reglas que el educador escribió
+en el archivo del ejercicio, y cuando una regla se cumple, el objetivo asociado
+queda marcado. El estudiante no envía nada ni declara nada: lo que se verifica
+es el estado en que quedó el sistema.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{\input{diagramas/cadena-validacion.tex}}
+    \caption{Cadena de validación automática, desde lo observado en el sistema
+    atacado hasta el objetivo que se marca como cumplido.}
+    \label{fig:cadena-validacion}
+\end{figure}
+En uno de los ejercicios de este trabajo, por ejemplo, 
+el estudiante debe aprovechar un permiso mal configurado para
+convertirse en administrador del sistema vulnerable y dejar evidencia de ello.
+Si lo consigue, aparece un archivo nuevo en el directorio del administrador. La
+plataforma ve ese archivo aparecer, lo registra como un evento, lo compara con
+la regla que el educador escribió, que pedía exactamente eso, y da el objetivo
+por cumplido. Todo ocurre sin que el estudiante escriba una respuesta y sin que
+el educador revise nada.
+
 \subsection{Arquitectura General}
 
 El sistema implementa una arquitectura dividida en cuatro capas con
@@ -129,8 +156,9 @@ es fundamental para lograr flexibilidad y extensibilidad.
     objetivo (el contenedor vulnerable), y la Capa 1b, el entorno atacante desde
     el cual el estudiante ejecuta el ataque (el contenedor atacante).
 
-    \item[Capa 2 — Monitoreo pasivo] Observa pasivamente el estado de los
-    contenedores con acceso de lectura externo al sistema. La única excepción a
+    \item[Capa 2 — Monitoreo pasivo] Observa el estado de los contenedores
+    desde fuera, con acceso de solo lectura, sin instalar agentes dentro
+    del sistema vulnerable ni modificarlo. La única excepción a
     esa lectura externa pura es la captura de tráfico de red, que requiere un
     contenedor auxiliar (\textit{sidecar}) corriendo \texttt{tcpdump}, por ser
     la forma adecuada de capturar el tráfico del escenario. Los escenarios de
@@ -179,9 +207,10 @@ es fundamental para lograr flexibilidad y extensibilidad.
 \label{sec:perfil-usuario}
 
 FlexiPwn asume un educador con manejo de línea de comandos y familiaridad
-básica con contenedores: debe poder instalar Docker en modo \textit{rootless}
-una vez, construir o adaptar una imagen del sistema vulnerable y escribir un
-archivo YAML. No es el tipo de usuario final que solo tiene que saber usar una aplicación web, sino
+básica con contenedores: debe instalar una vez Docker en modo
+\textit{rootless}, es decir, sin privilegios de administrador en la máquina
+anfitriona, construir o adaptar una imagen del sistema vulnerable y escribir
+un archivo YAML. No es el tipo de usuario final que solo tiene que saber usar una aplicación web, sino
 que corresponde al perfil habitual de quien dicta un curso de
 seguridad ofensiva. Lo que la plataforma elimina es la necesidad de programar
 el mecanismo de detección, es decir, configurar mecanismos para observar el

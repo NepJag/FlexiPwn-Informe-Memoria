@@ -1083,3 +1083,59 @@ completo.
     \caption{Asignación masiva con \texttt{batch-start}.}
     \label{fig:batch}
 \end{figure}
+
+\section{Recorrido del educador}
+\label{sec:recorrido-educador}
+
+Las secciones anteriores describieron cada componente por separado. Esta cierra
+el capítulo poniéndolos en orden, siguiendo a un educador desde una máquina
+vacía hasta un laboratorio en curso. La Figura~\ref{fig:recorrido-educador}
+resume el recorrido.
+
+\begin{figure}[H]
+    \centering
+    \input{diagramas/recorrido-educador.tex}
+    \caption{Recorrido del educador, desde la instalación hasta el cierre del
+    laboratorio.}
+    \label{fig:recorrido-educador}
+\end{figure}
+
+La preparación ocurre una sola vez y comienza por instalar Docker en modo
+\textit{rootless} y sincronizar las dependencias del proyecto con
+\texttt{uv}. A continuación el educador consigue la imagen del sistema
+vulnerable, ya sea construyéndola o adaptando una existente, respetando los
+requisitos de observabilidad descritos en la
+Sección~\ref{sec:estado-observable}. Con la imagen lista describe el ejercicio
+en un archivo YAML: los metadatos del escenario, el entorno que debe levantarse,
+las pistas que verá el estudiante y el árbol de objetivos que define la victoria.
+Ese archivo se incorpora con \texttt{scenario load}, y \texttt{scenario
+validate} comprueba el esquema por adelantado, de modo que un objetivo mal
+formado se reporta al cargar y no a mitad de la clase.
+
+El día de la actividad el educador levanta el \textit{daemon} en segundo plano
+con \texttt{daemon start -{}-detach} y asigna los entornos con \texttt{run
+batch-start}, entregándole un archivo que indica cuántos participantes recibe
+cada escenario. El comando crea un participante y un entorno aislado por
+asignación, y deja un CSV con el nombre de usuario, el puerto y la clave SSH de
+cada uno, que es lo que el educador reparte al curso. Desde ese momento su
+trabajo es observar. El estudiante entra por SSH al contenedor atacante y
+dispone del comando \texttt{flexipwn}, que le muestra los objetivos del
+escenario y sus pistas con el estado de cada uno. El educador, por su parte, se
+conecta al \textit{daemon} con \texttt{daemon attach} y sigue el avance con dos
+vistas: \texttt{dashboard}, que resume el estado de todos los entornos activos,
+y \texttt{feed}, que muestra los objetivos que se van cumpliendo a medida que
+ocurren. Cuando quiere el detalle de un participante concreto, \texttt{run show}
+entrega los objetivos alcanzados, el evento que disparó cada uno y los tiempos
+por etapa. Terminada la sesión, \texttt{scenario reset-all} o \texttt{participant reset-all} 
+limpian los entornos y dejan el laboratorio listo para la siguiente clase.
+
+Hay que notar qué hay cosas que no aparecen en ese recorrido. El educador no escribió código
+de detección, no instrumentó la imagen vulnerable, no escondió \textit{flags} ni
+las repartió, y no corrigió ningún ejercicio a mano. Las únicas piezas propias
+del ejercicio son la imagen y el archivo YAML. De los nueve pasos, solo los tres
+primeros dependen del contenido, mientras que los seis restantes son idénticos
+para cualquier escenario. Esa es la diferencia práctica que introduce la
+validación automática basada en estado: el costo de montar un ejercicio nuevo se
+concentra en describir qué debe observarse, y el costo de operarlo con un curso
+completo no crece con la cantidad de participantes más allá del tiempo de
+creación de los entornos medido en la Sección~\ref{sec:medicion-recursos}.

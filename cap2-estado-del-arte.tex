@@ -6,41 +6,40 @@ aprendizaje en ciberseguridad. La mayoría recurre a la ludificación con el
 objetivo de facilitar el entendimiento mediante ejercicios prácticos, tanto de
 seguridad ofensiva como defensiva.
 
-\section{Plataformas Comerciales}
+\section{Plataformas existentes}
 
-Entre las plataformas comerciales más reconocidas están TryHackMe
+El panorama actual puede agruparse en cuatro familias, que se distinguen tanto
+por el tipo de contenido que ofrecen como por la forma en que dan un ejercicio
+por resuelto.
+
+\textbf{Plataformas comerciales.} Entre las más reconocidas están TryHackMe
 (THM)~\cite{tryhackme} y Hack The Box (HTB)~\cite{hackthebox}, las cuales poseen
 contenido de alta calidad y ofrecen cursos y certificaciones en ciberseguridad.
 Ambas comparten el método de conexión a entornos hospedados por ellos y
 validación de \textit{flags} para sus módulos de aprendizaje, lo que
 eventualmente facilita la trampa si no se toman precauciones adecuadas.
 
-\section{Plataformas con Validación Automática}
+\textbf{Plataformas con validación automática.} PortSwigger Web Security
+Academy~\cite{portswigger} es una plataforma que se especializa en enseñar
+seguridad de aplicaciones web. Es de las pocas que incluye un sistema
+automático para detectar avances al explotar una vulnerabilidad, sin requerir
+validación manual mediante \textit{flags}. No obstante, no es autohospedable y
+está enfocada exclusivamente a vulnerabilidades web no personalizables.
 
-PortSwigger Web Security Academy~\cite{portswigger} es una plataforma que se
-especializa en enseñar seguridad de aplicaciones web. Es de las pocas que
-incluye un sistema automático para detectar avances al explotar una
-vulnerabilidad, sin requerir validación manual mediante \textit{flags}. No
-obstante, no es autohospedable y está enfocada exclusivamente a vulnerabilidades
-web no personalizables.
+\textbf{Plataformas estáticas.} Damn Vulnerable Web Application
+(DVWA)~\cite{dvwa} es un buen método para aprender seguridad web, pero no
+tiene capacidad de generar escenarios personalizados de forma directa ni
+seguimiento de progreso, y se valida con mensajes simples al explotar cierta
+vulnerabilidad.
 
-\section{Plataformas Estáticas}
+\textbf{Plataformas tipo CTF.} CTFd~\cite{ctfd}, RootTheBox~\cite{rootthebox}
+y picoCTF~\cite{picoctf} son herramientas para preparar competencias de
+captura la bandera (\textit{capture the flag}), con roles pedagógicos como el
+del curso CC5325 Taller de Hacking Competitivo. Sin embargo, para validar un
+ejercicio resuelto también requieren ingresar \textit{flags} manualmente,
+permitiendo posibles copias entre estudiantes.
 
-Damn Vulnerable Web Application (DVWA)~\cite{dvwa} es un buen método para
-aprender seguridad web, pero no tiene capacidad de generar escenarios
-personalizados de forma directa ni seguimiento de progreso, y se valida con
-mensajes simples al explotar cierta vulnerabilidad.
-
-\section{Plataformas Tipo CTF}
-
-CTFd~\cite{ctfd}, RootTheBox~\cite{rootthebox} y picoCTF~\cite{picoctf} son
-herramientas para preparar competencias de captura la bandera (\textit{capture
-the flag}), con roles pedagógicos como el del curso CC5325 Taller de Hacking
-Competitivo. Sin embargo, para validar un ejercicio resuelto también requieren
-ingresar \textit{flags} manualmente, permitiendo posibles copias entre
-estudiantes.
-
-\section{Plataformas Avanzadas}
+\section{Plataformas avanzadas}
 \label{sec:plataformas-avanzadas}
 
 Existen opciones más complejas como CyberRangeCZ~\cite{cyberrangecz},
@@ -67,7 +66,7 @@ sirven al seguimiento del ejercicio y no a determinar su resolución, que sigue
 dependiendo de una \textit{flag}. En la propuesta de este trabajo la detección
 es el mecanismo que marca el objetivo como cumplido. 
 
-\section{Oportunidad Identificada}
+\section{Oportunidad identificada}
 
 El análisis comparativo presentado en la Tabla~\ref{tab:comparacion} demuestra
 que no existe una solución que integre validación automática basada en estado

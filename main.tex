@@ -50,23 +50,25 @@ La seguridad en el desarrollo de software es hoy una preocupación central, sin
 embargo, las malas prácticas y la falta de conocimiento persisten. Aprender de
 forma práctica cómo funcionan las vulnerabilidades resulta mucho más efectivo
 que el estudio teórico, pero las plataformas existentes para enseñar seguridad
-ofensiva suelen depender de \textit{flags} manuales, no ser autohospedables o no
-ofrecer una validación automática basada en el estado del sistema. Surge así la
-oportunidad de una plataforma educativa que valide el progreso de forma
-automática a partir del estado de los sistemas comprometidos.
+ofensiva suelen depender de \textit{flags}: cadenas secretas que el estudiante
+encuentra y copia en un formulario, de modo que se verifica lo que el estudiante
+declara y no el estado real del sistema atacado. A eso se suma que muchas no son
+autohospedables ni permiten crear ejercicios propios. Surge así la oportunidad
+de una plataforma educativa que valide el progreso de forma automática a partir
+del estado de los sistemas comprometidos.
 
 Este trabajo propone y desarrolla FlexiPwn, una plataforma educativa
 autohospedable para la práctica de ciberseguridad ofensiva. El educador entrega
 una imagen vulnerable y define las condiciones de éxito mediante archivos
-declarativos en YAML. La plataforma instancia un entorno aislado por
-participante y valida el progreso automáticamente a partir del estado observado,
-sin \textit{flags} manuales. El sistema se organiza en cuatro capas con
-responsabilidades delimitadas: los entornos aislados (contenedores Docker en
-modo \textit{rootless}), el monitoreo pasivo (sistema de archivos, procesos,
-registros y tráfico de red mediante un \textit{sidecar} con tcpdump), un motor
-de evaluación de reglas declarativas, y la
-administración a través de una CLI, un REPL interactivo y un \textit{daemon} de
-seguimiento.
+declarativos en YAML. La plataforma crea un entorno aislado por participante y
+valida el progreso automáticamente: observa el sistema atacado desde fuera, sin
+instalar nada dentro, convierte lo que ve en eventos y los compara con las
+reglas del archivo, de modo que un objetivo se marca cuando el sistema
+efectivamente cambió. El sistema se organiza en cuatro capas con
+responsabilidades delimitadas: los entornos aislados que se crean para cada
+participante, la observación externa de su estado, un motor que evalúa las
+reglas declarativas y las herramientas de administración y seguimiento del
+educador.
 
 Los objetivos propuestos se cumplieron en su mayoría: la arquitectura modular de
 cuatro capas, la configuración declarativa, el motor de validación automática
