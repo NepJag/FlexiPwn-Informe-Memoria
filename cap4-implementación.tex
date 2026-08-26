@@ -8,10 +8,13 @@ de FlexiPwn, organizadas según las capas de la arquitectura.
 
 Las decisiones de \textit{stack} tecnológico de FlexiPwn fueron tomadas en base
 a un contexto particular: el sistema debe ser autohospedable en hardware de
-recursos limitados, y suficientemente simple para que un educador pueda operar
-y extender los escenarios sin programar el mecanismo de detección de cada
-ejercicio, según el perfil descrito en la
-Sección~\ref{sec:perfil-usuario}. Esta sección describe
+recursos limitados, del orden de un servidor de propósito general con ocho
+núcleos y dieciséis gigabytes de memoria, y suficientemente simple para que un
+educador pueda operar y extender los escenarios sin programar el mecanismo de
+detección de cada ejercicio, según el perfil descrito en la
+Sección~\ref{sec:perfil-usuario}. La
+Sección~\ref{sec:medicion-recursos} plasma esa expectativa con la medida 
+de recursos sobre la infraestructura del CLCERT. Esta sección describe
 los componentes seleccionados, organizados según las cuatro capas de la
 arquitectura. La justificación profunda de la tecnología de virtualización se
 desarrolla por separado en la Sección~\ref{sec:virtualizacion}.
@@ -140,11 +143,13 @@ adicionales.
 \subsection{Consideraciones de evolución}
 
 Dos decisiones del \textit{stack} están marcadas para revisión futura. La
-primera es migrar el \texttt{EnvironmentProvider} de Docker \textit{rootless} a
-\textbf{Podman \textit{rootless}}, que al ser \textit{daemonless} elimina el
-\textit{daemon} centralizado como superficie de ataque, y que se podría lograr
-gracias a que la interfaz abstracta hace que este cambio no afecte a las capas
-superiores. La segunda es complementar la CLI con una \textbf{interfaz web} para
+primera es \textbf{ampliar el conjunto de \textit{providers} de aislamiento}
+más allá de Docker \textit{rootless}, de modo que cada implementación nueva
+conviva con las existentes y el operador escoja la que le acomode al desplegar.
+La interfaz abstracta hace que ese cambio no afecte a las capas superiores, y el
+candidato inmediato es Podman \textit{rootless}, que al ser \textit{daemonless}
+elimina el \textit{daemon} centralizado como superficie de ataque. La segunda es
+complementar la CLI con una \textbf{interfaz web} para
 facilitar la administración del sistema y poder exponer de forma más visual el
 progreso de los estudiantes.
 
@@ -223,16 +228,26 @@ pequeña a mediana, monorepo Python, despliegue autohospedable), no mediciones d
 \textbf{Criterio (peso)} & \textbf{D. rootful} & \textbf{D. rootless} &
 \textbf{Podman} & \textbf{KVM} \\
 \hline
-Seguridad (30\%)       & 1 / 0.30 & 4 / 1.20 & 5 / 1.50 & 5 / 1.50 \\
+Seguridad (30\%)       & 1 / 0.30 & 4 / 1.20 & 4 / 1.20 & 5 / 1.50 \\
 Startup (20\%)         & 5 / 1.00 & 4 / 0.80 & 4 / 0.80 & 2 / 0.40 \\
-Simplicidad (20\%)     & 5 / 1.00 & 4 / 0.80 & 4 / 0.80 & 2 / 0.40 \\
+Simplicidad (20\%)     & 5 / 1.00 & 4 / 0.80 & 3 / 0.60 & 2 / 0.40 \\
 Monitoreo (15\%)       & 5 / 0.75 & 5 / 0.75 & 5 / 0.75 & 3 / 0.45 \\
 Portabilidad (15\%)    & 5 / 0.75 & 4 / 0.60 & 4 / 0.60 & 2 / 0.30 \\
 \hline
-\textbf{Total}         & \textbf{3.80} & \textbf{4.15} & \textbf{4.45} & \textbf{3.05} \\
+\textbf{Total}         & \textbf{3.80} & \textbf{4.15} & \textbf{3.95} & \textbf{3.05} \\
 \hline
 \end{tabular}
 \end{table}
+
+Dos de los puntajes de Podman merecen una nota. En seguridad recibe el mismo
+valor que Docker \textit{rootless} porque el criterio se evalúa en el contexto
+de FlexiPwn, y ambos modos eliminan el mismo vector crítico, el escape hacia
+root en el \textit{host}. La arquitectura \textit{daemonless} de Podman reduce
+la superficie residual, pero no cambia esa garantía. KVM conserva el valor
+máximo por aportar un \textit{kernel} separado. En simplicidad recibe un punto
+menos porque el criterio mide la simplicidad de implementación, que depende
+directamente de la madurez del cliente Python, y \texttt{podman-py} está menos
+consolidado que \texttt{docker-py}, como se detalla en la sección siguiente.
 
 \subsection{Decisión: Docker \textit{rootless} con interfaz abstracta}
 
@@ -245,34 +260,43 @@ modo \textit{rootless} elimina el vector de escape hacia root en el
 \textit{privilege escalation}. KVM ofrecería un aislamiento mayor, pero la
 diferencia es marginal en un entorno educativo controlado donde los
 participantes son estudiantes y no atacantes externos adversariales. En
-\textbf{rapidez de inicialización}, los contenedores arrancan en menos de un
-segundo con la imagen precargada, frente a los 5 a 30 segundos de una VM,
-diferencia decisiva cuando 30 o más estudiantes crean sus entornos al inicio de
-una clase. En \textbf{simplicidad}, \texttt{docker-py} es la API de orquestación
-de contenedores más madura y documentada disponible, lo que acelera el
-desarrollo dentro de los plazos del proyecto.
+\textbf{rapidez de inicialización}, un contenedor comparte el \textit{kernel}
+del anfitrión y no arranca un sistema operativo propio, de modo que su puesta en
+marcha es de un orden de magnitud menor que la de una máquina
+virtual~\cite{felter-vm-containers}. La diferencia se aprecia a la escala del
+laboratorio: crear un entorno completo, que incluye la red, el contenedor
+vulnerable, el atacante y la espera a que el servicio quede disponible, tomó
+entre diecisiete y treinta segundos según el escenario
+(Sección~\ref{sec:medicion-recursos}). Una alternativa basada en máquinas
+virtuales sumaría a ese costo el arranque de dos sistemas operativos por
+participante. En \textbf{simplicidad}, \texttt{docker-py}
+es la API de orquestación de contenedores más madura y documentada disponible,
+lo que acelera el desarrollo dentro de los plazos del proyecto.
 
-Hay que notar que Podman \textit{rootless} obtuvo el puntaje ponderado más alto
-(4.45 frente a 4.15) y es arquitectónicamente más sólido al ser
-\textit{daemonless}. La razón para no elegirlo como \textit{backend} principal
-fue pragmática: \texttt{podman-py} es funcional pero aún en desarrollo activo,
-con diferencias sutiles respecto a \texttt{docker-py} en operaciones de
-\textit{streaming} de \textit{logs} y \textit{stats}, y la documentación y
-comunidad de \texttt{docker-py} es considerablemente mayor. En términos
-prácticos, ambas
-alternativas ofrecen garantías de seguridad equivalentes para los ejercicios de
-FlexiPwn. La diferencia arquitectónica es significativa en producción a gran
-escala, pero marginal para una instalación educativa de algunas decenas de
-usuarios concurrentes. La interfaz abstracta permite incorporar Podman como
-\textit{backend} alternativo en una iteración futura sin modificar las capas
-superiores.
+Podman \textit{rootless} es arquitectónicamente más sólido al ser
+\textit{daemonless}, ya que elimina el \textit{daemon} compartido como
+superficie de ataque. Esa ventaja, sin embargo, no se traduce en una diferencia
+de garantías para el caso de uso de FlexiPwn, donde el \textit{daemon} ya se
+ejecuta sin privilegios y dentro del mismo \textit{user namespace} que los
+contenedores. En el otro sentido, la menor madurez de \texttt{podman-py} sí
+tiene un efecto directo sobre el desarrollo: es funcional pero aún está en
+desarrollo activo, con diferencias sutiles respecto a \texttt{docker-py} en
+operaciones de \textit{streaming} de \textit{logs} y \textit{stats}, y con una
+documentación y una comunidad considerablemente menores. La diferencia
+arquitectónica es significativa en producción a gran escala, pero marginal para
+una instalación educativa de algunas decenas de usuarios concurrentes, de modo
+que la comparación deja a ambas opciones muy próximas y el desempate lo aporta
+el costo de adopción. La interfaz abstracta permite incorporar otros
+\textit{providers} en una iteración futura sin modificar las capas superiores.
 
 \subsection{Trabajo futuro en aislamiento}
 
 Existen tres líneas de evolución posibles, donde las últimas dos apuntan a
-vulnerabilidades más sofisticadas. La primera es implementar un
-\texttt{PodmanProvider}, mejora natural en seguridad arquitectónica por su base
-\textit{rootless}. La segunda es usar gVisor (\texttt{runsc}) como
+vulnerabilidades más sofisticadas. La primera es ampliar el conjunto de
+\textit{providers} disponibles, de modo que la elección de la tecnología de
+aislamiento pase a ser una decisión de despliegue y no de arquitectura. El
+candidato inmediato es un \texttt{PodmanProvider}, por su base
+\textit{daemonless}. La segunda es usar gVisor (\texttt{runsc}) como
 \textit{runtime} alternativo para ejercicios con vulnerabilidades más delicadas:
 añade un \textit{kernel} en espacio de usuario que intercepta \textit{syscalls}
 con un \textit{overhead} mucho menor que una VM, aunque implementa solo una
@@ -556,6 +580,7 @@ buffer no
 está vacío, sin esperar al siguiente ciclo.
 
 \subsection{Limitaciones del Monitoreo por Polling}
+\label{sec:limitaciones-polling}
 
 El monitor de \textit{filesystem} usa \texttt{container.diff()}, que retorna una
 \textit{snapshot} del estado acumulado del \textit{filesystem} desde el inicio

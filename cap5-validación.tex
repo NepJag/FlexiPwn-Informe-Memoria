@@ -338,6 +338,64 @@ hipervisor, como microVMs, o un \textit{kernel} en espacio de usuario (por
 ejemplo, gVisor), obviamente con el costo asociado de un mayor uso de
 recursos.
 
+\subsection{Medición de recursos y escala}
+\label{sec:medicion-recursos}
+
+El Capítulo~\ref{sec:implementacion} sostiene que la plataforma debe ser
+autohospedable en hardware de recursos limitados. Para ponerle un número a esa
+afirmación se midió el consumo de recursos del sistema con el \textit{script}
+\texttt{scripts/medir-recursos.sh} sobre el servidor del CLCERT, una máquina de
+ocho núcleos con 22~GiB de memoria, Docker 29.7.2 en modo \textit{rootless} y
+Python 3.12. El \textit{script} registra el consumo de los contenedores con
+\texttt{docker stats}, la memoria residente del \textit{daemon} desde
+\texttt{/proc} y los tiempos de creación, sin ejecutar nada dentro de los
+entornos.
+
+La medición se repitió sobre los dos escenarios extremos del repositorio: la
+escalada de privilegios, el más liviano, que levanta dos contenedores y no
+necesita captura de red; y la inyección SQL, el más pesado, que levanta tres
+contenedores, uno de ellos con un servidor MySQL. La
+Tabla~\ref{tab:medicion-recursos} resume los resultados.
+
+\begin{table}[h]
+\centering
+\caption{Consumo de recursos por entorno, medido sobre el servidor del CLCERT.}
+\label{tab:medicion-recursos}
+\begin{tabular}{|p{6.5cm}|c|c|}
+\hline
+\textbf{Magnitud} & \textbf{Escalada de privilegios} & \textbf{Inyección SQL} \\
+\hline
+Contenedores por entorno              & 2        & 3 \\
+Memoria de un entorno aislado         & 6,4 MiB  & 391 MiB \\
+Memoria por entorno con diez activos  & 4,7 MiB  & 391 MiB \\
+Memoria total de diez entornos        & 47 MiB   & 3.910 MiB \\
+Creación de un entorno en frío        & 16,8 s   & 30,4 s \\
+Costo por entorno en un lote de diez  & 13,7 s   & 34,6 s \\
+\hline
+\end{tabular}
+\end{table}
+
+El \textit{daemon} de seguimiento ocupa entre 73 y 75~MiB de memoria residente
+en reposo, y crece apenas 2~MiB al pasar a diez entornos activos, de modo que su
+costo es prácticamente independiente de la cantidad de participantes. Las cuatro
+imágenes del repositorio, más la del \textit{sidecar} de captura, suman alrededor
+de 3,5~GB en disco y se comparten entre todos los entornos.
+
+El factor determinante es entonces el escenario y no la plataforma, y la
+diferencia entre uno y otro es de dos órdenes de magnitud. Con el escenario
+liviano, diez entornos simultáneos ocuparon 47~MiB en total, de modo que la
+memoria deja de ser el límite y el techo lo pondría el rango de puertos
+publicados. Con el escenario pesado, cada entorno cuesta cerca de 400~MiB y el
+consumo escala de forma lineal, sin economías de escala apreciables: un curso de
+treinta participantes requiere del orden de doce gigabytes, que el servidor
+descrito absorbe con holgura.
+
+El arranque por lotes es secuencial, de modo que su costo total escala con la
+cantidad de participantes. Preparar un curso de treinta toma alrededor de siete
+minutos con el escenario liviano y de diecisiete con el pesado. Se trata de una operación 
+que el educador debería realizar antes de la clase, y no de
+una espera que recaiga sobre los estudiantes.
+
 \section{Pruebas en infraestructura real}
 \label{sec:infra-real}
 

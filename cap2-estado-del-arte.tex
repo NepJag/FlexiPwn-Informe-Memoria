@@ -41,12 +41,31 @@ ingresar \textit{flags} manualmente, permitiendo posibles copias entre
 estudiantes.
 
 \section{Plataformas Avanzadas}
+\label{sec:plataformas-avanzadas}
 
 Existen opciones más complejas como CyberRangeCZ~\cite{cyberrangecz},
 EDURange~\cite{edurange} o Tectonic~\cite{tectonic} para simular campos de
 entrenamiento de ciberseguridad (\textit{cyber ranges}), los cuales requieren
 mayor conocimiento de infraestructura técnica, lo que los hace opciones poco
 accesibles para contextos educativos pequeños.
+
+Las tres combinan varios mecanismos de validación, configurables por ejercicio.
+CyberRangeCZ organiza el entrenamiento en niveles cuya resolución el estudiante
+envía como respuesta, junto a niveles de evaluación de tipo cuestionario y
+soluciones de referencia expresadas como patrones de comandos. EDURange
+complementa las \textit{flags} con el análisis del historial de la terminal del
+participante, comparado contra hitos definidos como expresiones regulares.
+Tectonic despliega CTFd para la validación por \textit{flags} y, en paralelo, un
+servicio de Elastic con agentes en las instancias y reglas de detección que
+generan alertas para el seguimiento del entrenamiento.
+
+Esta última es la propuesta más cercana a la de este trabajo, y conviene
+precisar en qué se distingue. En Tectonic la observación se realiza mediante
+agentes instalados dentro de las instancias, mientras que aquí el monitoreo es
+externo al sistema vulnerable y no lo modifica. Además, sus alertas de detección
+sirven al seguimiento del ejercicio y no a determinar su resolución, que sigue
+dependiendo de una \textit{flag}. En la propuesta de este trabajo la detección
+es el mecanismo que marca el objetivo como cumplido. 
 
 \section{Oportunidad Identificada}
 
@@ -76,17 +95,30 @@ sin costo (\textit{Freemium} implica funcionalidades limitadas gratuitas);
 TryHackMe     & No  & Freemium & Flags     & No \\
 Hack The Box  & No  & Freemium & Flags     & No \\
 PortSwigger   & No  & Gratuito & Automática & No \\
-DVWA          & Sí  & Gratuito & Manual    & Limitado \\
+DVWA          & Sí  & Gratuito & Manual\dag & Limitado \\
 CTFd          & Sí  & Gratuito & Flags     & Sí \\
 RootTheBox    & Sí  & Gratuito & Flags     & Sí \\
 picoCTF       & Sí  & Gratuito & Flags     & Sí \\
-CyberRangeCZ  & Sí  & Gratuito & Multicriterio & Sí \\
-EDURange      & Sí  & Gratuito & Multicriterio & Sí \\
-Tectonic      & Sí  & Gratuito & Multicriterio & Sí \\ \hline
+CyberRangeCZ  & Sí  & Gratuito & Multicriterio* & Sí \\
+EDURange      & Sí  & Gratuito & Multicriterio* & Sí \\
+Tectonic      & Sí  & Gratuito & Multicriterio* & Sí \\ \hline
 \textbf{Propuesta} & \textbf{Sí} & \textbf{Gratuito} &
 \textbf{Automática} & \textbf{Sí} \\
 \hline
 \end{tabular}
+
+\vspace{0.5em}
+\begin{minipage}{\textwidth}
+\footnotesize *\textbf{Multicriterio}: la plataforma no fija un único mecanismo
+de validación, sino que combina varios configurables por ejercicio, entre ellos
+el envío de una \textit{flag} o respuesta, cuestionarios de evaluación y el
+análisis de la actividad registrada del estudiante o de las instancias. La
+Sección~\ref{sec:plataformas-avanzadas} detalla el caso de cada plataforma.
+
+\dag\,\textbf{Manual}: la plataforma no registra el ejercicio como resuelto. La
+aplicación muestra el efecto del ataque y es el propio estudiante quien
+concluye si tuvo éxito, sin que exista comprobación ni seguimiento del avance.
+\end{minipage}
 \end{table}
 
 \subsection{Valor Pedagógico}
