@@ -1,0 +1,41 @@
+% Recorrido del educador: de la instalación al laboratorio en curso.
+\begin{tikzpicture}[
+    font=\small,
+    paso/.style={
+        draw, rounded corners=2pt, align=center,
+        minimum height=1.45cm, text width=3.05cm, inner sep=4pt
+    },
+    fase/.style={font=\small\bfseries, anchor=west},
+    flecha/.style={-{Stealth[length=2.2mm]}, thick}
+]
+
+% ---- Fase 1: antes de la clase -------------------------------------------
+\node[fase] at (-0.7,0) {Antes de la clase};
+
+\node[paso] (p1) at (0.9,-1.45)  {1. Instalar\\\footnotesize Docker rootless\\\footnotesize y \texttt{uv sync}};
+\node[paso, right=0.5cm of p1] (p2) {2. Imagen vulnerable\\\footnotesize construir o adaptar};
+\node[paso, right=0.5cm of p2] (p3) {3. Escenario en YAML\\\footnotesize objetivos y pistas};
+\node[paso, right=0.5cm of p3] (p4) {4. \texttt{scenario load}\\\footnotesize y \texttt{scenario validate}};
+
+\draw[flecha] (p1) -- (p2);
+\draw[flecha] (p2) -- (p3);
+\draw[flecha] (p3) -- (p4);
+
+% ---- Fase 2: la clase ----------------------------------------------------
+\node[fase] at (-0.7,-3.05) {Durante la clase};
+
+\node[paso] (p5) at (0.9,-4.5)  {5. \texttt{daemon start}\\\footnotesize en segundo plano};
+\node[paso, right=0.5cm of p5] (p6) {6. \texttt{run batch-start}\\\footnotesize un entorno por participante};
+\node[paso, right=0.5cm of p6] (p7) {7. \texttt{dashboard} y \texttt{feed}\\\footnotesize avance en vivo};
+\node[paso, right=0.5cm of p7] (p8) {8. \texttt{run show}\\\footnotesize evidencia y tiempos};
+
+\draw[flecha] (p5) -- (p6);
+\draw[flecha] (p6) -- (p7);
+\draw[flecha] (p7) -- (p8);
+
+% ---- Fase 3: cierre ------------------------------------------------------
+\node[fase] at (-0.7,-6.1) {Al cerrar};
+
+\node[paso, text width=4.5cm, anchor=west] (p9) at (p1.west |- 0,-7.4) {9. \texttt{scenario/participant reset-all}\\\footnotesize libera los entornos};
+
+\end{tikzpicture}

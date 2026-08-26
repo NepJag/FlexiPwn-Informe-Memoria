@@ -1,0 +1,21 @@
+% Cadena de validación automática: de lo observado al objetivo cumplido.
+\begin{tikzpicture}[
+    font=\small,
+    etapa/.style={
+        draw, rounded corners=2pt, align=center,
+        minimum height=1.75cm, minimum width=3.3cm,
+        text width=3.0cm, inner sep=4pt
+    },
+    flecha/.style={-{Stealth[length=2.2mm]}, thick}
+]
+
+\node[etapa] (e1) {Se observa el sistema atacado desde fuera};
+\node[etapa, right=0.5cm of e1] (e2) {Lo observado se convierte en un evento};
+\node[etapa, right=0.5cm of e2] (e3) {El evento se compara con las reglas};
+\node[etapa, right=0.5cm of e3] (e4) {El objetivo queda cumplido};
+
+\draw[flecha] (e1) -- (e2);
+\draw[flecha] (e2) -- (e3);
+\draw[flecha] (e3) -- (e4);
+
+\end{tikzpicture}
