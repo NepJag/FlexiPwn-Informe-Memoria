@@ -8,7 +8,7 @@ resultados, de modo que cualquier lector pueda contrastar las afirmaciones del
 texto contra la implementación real.
 
 La versión que corresponde a este informe queda fijada en el commit
-\texttt{f26bc98} del repositorio. Trabajar sobre esa referencia asegura que
+\texttt{b4f8fb4} del repositorio. Trabajar sobre esa referencia asegura que
 las rutas de archivo y los números de línea citados a lo largo del texto
 coincidan con el código, con independencia de la evolución posterior del
 proyecto.
@@ -23,11 +23,22 @@ viven en \texttt{scenarios/} como archivos YAML, las imágenes de los
 contenedores en \texttt{docker/} y la documentación operativa en
 \texttt{docs/}, lo que permite leer el informe y el código en paralelo.
 
-Para reproducir los resultados, el \texttt{README} describe la instalación y
-el \textit{script} \texttt{setup-images.sh} construye las imágenes necesarias.
-El runbook \texttt{docs/tests-w13+.md} detalla el recorrido de validación
-\textit{end-to-end} y los experimentos de robustez referidos en el
-Capítulo~\ref{sec:validacion}, y el \textit{script}
-\texttt{scripts/containment\_check.sh} reproduce la verificación de contención
-del entorno. Las pruebas de concepto que precedieron al sistema se conservan
-en un repositorio aparte~\cite{flexipwn-poc}.
+\begin{sloppypar}
+    Para reproducir los resultados, el \texttt{README} describe la instalación y
+    el \textit{script} \texttt{setup-images.sh} construye las imágenes necesarias.
+    Quien quiera montar un escenario sobre una imagen propia encontrará en
+    \texttt{docs/CONTRIBUTING-imagenes.md} los requisitos que esa imagen debe
+    cumplir, desarrollados a partir del contrato descrito en la
+    Sección~\ref{sec:estado-observable}, y en
+    \texttt{docs/CONTRIBUTING-monitores-targets.md} la guía para extender la
+    detección con un monitor y un \textit{target} nuevos.
+    
+    Cada afirmación empírica del Capítulo~\ref{sec:validacion} tiene su artefacto
+    en el repositorio. El runbook \texttt{docs/tests-w13+.md} detalla el recorrido
+    de validación \textit{end-to-end} y los experimentos de robustez. El
+    \textit{script} \texttt{scripts/containment\_check.sh} reproduce la
+    verificación de contención del entorno. \texttt{scripts/medir-recursos.sh}
+    reproduce la medición de recursos y escala de la
+    Sección~\ref{sec:medicion-recursos}. Las pruebas de concepto que precedieron al
+    sistema se conservan en un repositorio aparte~\cite{flexipwn-poc}.
+\end{sloppypar}
