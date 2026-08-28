@@ -40,7 +40,21 @@
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit}
 
+% "Anexo" en lugar de "Apéndice". Se engancha a las leyendas de babel
+% porque el propio archivo .toc empieza con \babel@toc{spanish}, que vuelve
+% a aplicarlas y pisaría un \renewcommand suelto.
+\addto\captionsspanish{%
+  \renewcommand{\appendixname}{Anexo}%
+  \renewcommand{\appendixpagename}{Anexo}%
+  \renewcommand{\appendixtocname}{Anexo}%
+}
+
+% Etiqueta de la entrada del anexo en el índice: "Anexo A." en vez de "A".
+\newcommand{\flxnumberlineanexo}[1]{\appendixname~#1. }
+\newcommand{\flxtocanexo}{\let\numberline\flxnumberlineanexo}
+
 \begin{document}
+
 
 \frontmatter
 \maketitle
@@ -127,6 +141,10 @@ A las personas que se han cruzado en mi camino y me llevaron a lo que soy hoy.
 \listoftables % opcional
 \listoffigures % opcional
 
+% La declaración va en la página anterior a la introducción y conserva la
+% numeración romana de las páginas preliminares (instructivo N° 17/2026).
+\input{declaracion.tex}
+
 \mainmatter
 
 \input{cap1-introducción.tex}
@@ -145,8 +163,40 @@ A las personas que se han cruzado en mi camino y me llevaron a lo que soy hoy.
 \bibliography{bibliografia}
 }
 
-% opcional ...
+% La biblioteca central exige la palabra "Anexo" en lugar de "Apéndice",
+% un encabezado "Anexo" en el índice y en la página, y el título del anexo
+% en una sola línea con el formato "Anexo A: <título>".
+\makeatletter
+\renewcommand{\@makechapterhead}[1]{%
+  \vspace*{50\p@}%
+  {\parindent \z@ \raggedright \normalfont
+    \interlinepenalty\@M
+    \huge\bfseries \appendixpagename\par\nobreak
+    \vskip 20\p@
+    \huge\bfseries \appendixname\ \thechapter: #1\par\nobreak
+    \vskip 40\p@
+  }}
+\makeatother
+% La entrada "Anexo" del índice va FUERA del entorno appendices: dentro,
+% el paquete antepone \appendixname a cada entrada de capítulo y quedaría
+% escrito "Anexo Anexo".
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{Anexo}
+% El anexo se escribe en el índice a nivel de sección para que quede
+% indentado bajo el encabezado "Anexo", como en el manual de normalización.
+% Dos piezas: se degrada el nivel de la entrada mientras se compone el anexo,
+% y se redefine \numberline dentro del propio .toc para que la etiqueta se
+% lea "Anexo A." en vez de solo "A".
+\addtocontents{toc}{\protect\flxtocanexo}
 \begin{appendices}
+\makeatletter
+\let\flx@addcontentsline\addcontentsline
+\renewcommand\addcontentsline[3]{\flx@addcontentsline{#1}{section}{#3}}
+\makeatother
 \input{anexoA.tex}
+\makeatletter
+\let\addcontentsline\flx@addcontentsline
+\makeatother
 \end{appendices}
 \end{document}

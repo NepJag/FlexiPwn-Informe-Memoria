@@ -1,0 +1,90 @@
+% Declaración de uso de inteligencia artificial exigida por el instructivo
+% N° 17/2026. Es el texto que estaba en la Sección 1.4, movido tal cual a las
+% páginas preliminares: va inmediatamente antes de la introducción y conserva
+% la numeración romana del frontmatter.
+\clearpage
+\chapter*{Declaración de uso de inteligencia artificial}
+\addcontentsline{toc}{chapter}{Declaración de uso de inteligencia artificial}
+
+En la elaboración de esta memoria se utilizaron herramientas de inteligencia
+artificial generativa, concretamente los modelos Claude de Anthropic (familias
+Opus y Sonnet 4.x), empleados principalmente a través de la aplicación de
+escritorio en su modo Cowork. Estas herramientas se usaron a lo largo de todo
+el trabajo: en la revisión de literatura y la comparación de
+plataformas, en la discusión de decisiones de arquitectura, 
+en la generación y refactorización de código, en la redacción y
+edición de este documento,  y en tareas de apoyo
+como el control de versiones y la organización del proyecto. Todo el contenido
+generado o asistido fue revisado, evaluado y validado por el autor,
+quien asume plena responsabilidad sobre el trabajo presentado. La
+inteligencia artificial se empleó como herramienta de apoyo y no se reconoce
+como coautoría.
+
+El modo Cowork se utilizó como un acelerador del trabajo: permitió delegar la
+realización del trabajo, como escribir código, redactar y editar, ejecutar y
+verificar, conservando el rol del autor como arquitecto de las decisiones.
+Trabajar de esta forma permitió mantener la constancia durante todo el semestre,
+compatibilizando con las labores del autor como desarrollador de aplicaciones
+móviles. La integración de la herramienta estuvo acompañado de la verificación:
+la relectura crítica de cada resultado, la comparación de las afirmaciones y
+planeamientos contra el código fuente, y el uso de una memoria persistente entre
+sesiones para mantener el contexto y evitar contradicciones. El criterio
+principal fue no dar por válido ningún resultado por el solo hecho de que
+``funciona'' a primera vista.
+
+Los prompts siguieron unos patrones recurrentes. Para una tarea de inicio a fin,
+se partía entregando el contexto (usualmente un resumen de lo trabajado en
+sesiones anteriores), seguido de lo que había que hacer y de los puntos que
+valía la pena discutir, pidiendo siempre alternativas para elegir la
+implementación más adecuada. Se cerraba con algún criterio de validación y con
+notas que precisaban la ejecución. A mitad de una tarea el patrón cambiaba: se
+revisaba lo ejecutado y se respondía con un punteo extenso de dudas, cambios
+deseados y aspectos por considerar, y solo se confirmaba el avance al paso
+siguiente cuando el resultado era satisfactorio. La mayoría de veces, se
+recordaba al modelo lo que debería tener en memoria, para asegurar un correcto
+alineamiento de la tarea a realizar. Los prompts breves se usaban para algunos
+casos puntuales cuya discusión convenía expandir, y al final de una sesión
+cargada se solicitaban los cierres habituales: formateo, guardado en memoria,
+mensaje de \textit{commit} si se requería y un prompt de traspaso que orientara
+a la sesión siguiente.
+
+A modo ilustrativo, dos ejemplos representativos del tipo de instrucción
+entregada:
+
+\begin{itemize}
+    \item Un prompt que funcionó bien: ``Retoma el informe: primero una foto del
+    estado del repositorio con los commits nuevos. Luego valida afirmación por
+    afirmación contra el código, marcando cada una como verdadera, falsa o
+    imprecisa con su archivo y línea. Entrega un reporte ordenado por criticidad
+    antes de editar y espera mi confirmación. Reglas: 80 caracteres, prosa en
+    presente y opciones ante cada alternativa.'' Funcionó porque aportaba
+    contexto, descomponía la tarea, exigía validación y opciones, y fijaba
+    restricciones explícitas.
+    \item Un prompt que funcionó mal: una instrucción amplia y sin contexto como
+    ``mejora el capítulo de implementación'', que al no acotar el objetivo ni
+    los criterios de aceptación producía cambios genéricos o de alcance excesivo
+    que luego exigían una corrección considerable. La lección es que los prompts
+    pobres en contexto y sin criterios claros rendían resultados de bajo valor.
+\end{itemize}
+
+Surgió un momento interesante en la etapa final del trabajo, al estudiar una
+prueba de concepto de escape de contenedores para comprender el funcionamiento
+de este tipo de \textit{exploit} y respaldar el análisis de contención del
+entorno. Al
+tratar un tema sensible, las primeras consultas sobre una prueba de concepto
+realista del CVE~\cite{cve-runc-2025, poc-cve-2025-31133} en cuestión fueron
+rechazadas por las políticas de uso de la herramienta. Tras solicitar al equipo
+de Anthropic un acceso ampliado y explicar su propósito educativo dentro de este
+trabajo de ciberseguridad, la consulta pudo retomarse. A partir de ahí, el
+modelo resultó de gran ayuda para seguir el \textit{exploit} paso a paso,
+consiguiendo
+compararlo con otros CVE relacionados, distinguiendo, por ejemplo, los que se
+ejecutan desde el interior del contenedor de los que afectan directamente al
+\textit{host}.
+
+Si el trabajo se reiniciara, se cambiarían algunas formas del uso de la
+inteligencia artificial. Se establecería antes una rutina de revisión y
+verificación sistemática, para no depender de que un resultado ``parezca''
+correcto. Además, se sería más disciplinado con la memoria persistente y los
+traspasos entre sesiones, que resultaron clave para mantener la coherencia a lo
+largo de un trabajo asistido por IA.
